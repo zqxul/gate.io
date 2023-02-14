@@ -38,19 +38,25 @@ func (job *SpotJob) Start(fund decimal.Decimal, ws *websocket.Conn) {
 	go job.beat(ctx, ws)
 	go job.listen(ctx, ws)
 	go job.fund(ctx, fund)
-	go job.refreshOrders(ctx)
+	go job.refreshOrderBook(ctx)
 }
 
-func (job SpotJob) refreshOrders(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Minute)
+func (job SpotJob) refreshOrderBook(ctx context.Context) {
+	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			orders := job.currentOrders(ctx, channel.SpotChannelOrderSideBuy)
-			for _, order := range orders {
-				log.Printf("order[%s]-[%s] with [price: %s, amount: %s/%s] was created at %s\n", order.Text, order.Side, order.Price, order.Left, order.Amount, time.UnixMilli(order.CreateTimeMs))
+			log.Printf("*******************************************************[order book]*******************************************************")
+			for i, order := range orders {
+				log.Printf("\t\t [%s]-[%s] with [price: %s, amount: %s/%s] was created at %s\n", order.Text, order.Side, order.Price, order.Left, order.Amount, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
+				if i < len(orders)-1 {
+					log.Printf("--------------------------------------------------------------------------------------------------------------------------\n")
+				}
 			}
+			log.Printf("*******************************************************[order book]*******************************************************")
+			log.Println()
 		case <-ctx.Done():
 			return
 		}
