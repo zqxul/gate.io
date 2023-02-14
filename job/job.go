@@ -57,6 +57,7 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 			}
 			log.Printf("*******************************************************[order book]*******************************************************")
 			log.Println()
+			log.Println()
 		case <-ctx.Done():
 			return
 		}
