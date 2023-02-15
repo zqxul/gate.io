@@ -135,7 +135,7 @@ func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, dec
 	}
 	askPrice, _ := decimal.NewFromString(orderBook.Asks[0][0])
 	bidPrice, _ := decimal.NewFromString(orderBook.Bids[0][0])
-	log.Printf(":::::::::::::::::::::::::::    Ask - %v ---- Market ---- Bid - %v    :::::::::::::::::::::::::::\n", orderBook.Asks[0], orderBook.Bids[0])
+	log.Printf("**************** %v - Ask :::::::::::::::::::: - Market - :::::::::::::::::::: Bid - %v ****************\n", orderBook.Asks[0], orderBook.Bids[0])
 	return askPrice, bidPrice
 }
 
