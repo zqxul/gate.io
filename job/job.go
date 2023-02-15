@@ -54,7 +54,7 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 		case <-ticker.C:
 			job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
-			if len(orders) == 0 {
+			if len(orders) < job.OrderNum {
 				_, bidPrice := job.lookupMarketPrice(ctx)
 				amount := job.Fund.Div(bidPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
 				job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
@@ -233,6 +233,8 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 		newTopPrice := topPrice.Mul(decimal.NewFromInt(1).Add(job.Gap))
 		if newTopPrice.LessThan(orderPrice) {
 			orderPrice = newTopPrice
+		} else if newTopPrice.Equal(orderPrice) {
+			return
 		}
 	}
 
