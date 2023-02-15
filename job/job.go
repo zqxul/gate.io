@@ -39,7 +39,7 @@ func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient) *S
 
 func (job *SpotJob) init(ctx context.Context) {
 	job.MinBaseAmount, job.MinQuoteAmount = job.getCurrencyPairMinAmount(ctx)
-	job.Account = job.account(ctx)
+	job.refreshAccount(ctx)
 }
 
 func (job *SpotJob) Start(ws *websocket.Conn) {
@@ -81,18 +81,18 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 
 }
 
-func (job *SpotJob) account(ctx context.Context) gateapi.SpotAccount {
+func (job *SpotJob) refreshAccount(ctx context.Context) {
 	accounts, _, err := job.Client.SpotApi.ListSpotAccounts(ctx, &gateapi.ListSpotAccountsOpts{
 		Currency: optional.NewString("USDT"),
 	})
 	if err != nil {
 		log.Printf("job start list spot account err: %v", err)
-		return gateapi.SpotAccount{Currency: job.CurrencyPair}
+		return
 	}
 	if len(accounts) == 0 {
 		panic("There has no spot account")
 	}
-	return accounts[0]
+	job.Account = accounts[0]
 }
 
 func (job *SpotJob) listen(ctx context.Context, ws *websocket.Conn) {
@@ -235,6 +235,7 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 		}
 	}
 
+	job.refreshAccount(ctx)
 	// create order
 	orderAmount := price.Mul(decimal.NewFromInt(1).Sub(job.Gap)).Mul(amount)
 	if orderAmount.LessThan(job.MinQuoteAmount) || amount.LessThan(job.MinBaseAmount) {
