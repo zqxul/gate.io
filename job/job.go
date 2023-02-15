@@ -42,22 +42,21 @@ func (job *SpotJob) Start(fund decimal.Decimal, ws *websocket.Conn) {
 }
 
 func (job SpotJob) refreshOrderBook(ctx context.Context) {
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
+			job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, channel.SpotChannelOrderSideBuy)
-			log.Printf("*******************************************************[order book]*******************************************************")
+			log.Printf("*******************************************************[current orders]*******************************************************")
 			for i, order := range orders {
 				log.Printf("\t\t [%s]-[%s] with [price: %s, amount: %s/%s] was created at %s\n", order.Text, order.Side, order.Price, order.Left, order.Amount, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
 				if i < len(orders)-1 {
-					log.Printf("--------------------------------------------------------------------------------------------------------------------------\n")
+					log.Printf("-----------------------------------------------------------------------------------------------------------------------------\n")
 				}
 			}
-			log.Printf("*******************************************************[order book]*******************************************************")
-			log.Println()
-			log.Println()
+			log.Printf("*******************************************************[current orders]*******************************************************\n\n\n")
 		case <-ctx.Done():
 			return
 		}
@@ -81,10 +80,11 @@ func (job *SpotJob) account(ctx context.Context) gateapi.SpotAccount {
 
 func (job *SpotJob) fund(ctx context.Context, fund decimal.Decimal) {
 	usdtAcct := job.account(ctx)
-	log.Printf("job start with usdt fund account: [currency: %v, available: %s]", usdtAcct.Currency, usdtAcct.Available)
-	price, amount := job.getPriceAmount(ctx, job.CurrencyPair, fund)
-	log.Printf("job start with [price: %v, amount: %v]", price, amount)
-	job.CreateOrder(ctx, channel.SpotChannelOrderSideBuy, price, amount)
+	log.Printf("job start with usdt account: [currency: %v, available: %s]", usdtAcct.Currency, usdtAcct.Available)
+	_, bidPrice := job.lookupMarketPrice(ctx)
+	amount := fund.Div(bidPrice).Div(decimal.NewFromInt(2)).RoundFloor(6)
+	log.Printf("job start with - [price: %v, amount: %v]", bidPrice, amount)
+	job.CreateOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
 }
 
 func (job *SpotJob) listen(ctx context.Context, ws *websocket.Conn) {
@@ -126,16 +126,17 @@ func (job *SpotJob) beat(ctx context.Context, ws *websocket.Conn) {
 	}
 }
 
-func (job *SpotJob) getPriceAmount(ctx context.Context, currentPair string, fund decimal.Decimal) (decimal.Decimal, decimal.Decimal) {
-	orderBook, _, err := job.Client.SpotApi.ListOrderBook(ctx, currentPair, &gateapi.ListOrderBookOpts{
+func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, decimal.Decimal) {
+	orderBook, _, err := job.Client.SpotApi.ListOrderBook(ctx, job.CurrencyPair, &gateapi.ListOrderBookOpts{
 		Limit: optional.NewInt32(10),
 	})
-	log.Printf("job getPriceAmount ListOrderBook success: %+v", orderBook)
 	if err != nil {
 		panic(err)
 	}
-	price, _ := decimal.NewFromString(orderBook.Bids[0][0])
-	return price, fund.Div(price).Div(decimal.NewFromInt(2)).RoundFloor(6)
+	askPrice, _ := decimal.NewFromString(orderBook.Asks[0][0])
+	bidPrice, _ := decimal.NewFromString(orderBook.Bids[0][0])
+	log.Printf(":::::::::::::::::::::::::::    Ask - %v ---- Market ---- Bid - %v    :::::::::::::::::::::::::::\n", orderBook.Asks[0], orderBook.Bids[0])
+	return askPrice, bidPrice
 }
 
 func (job *SpotJob) HandleMessage(ctx context.Context, message *channel.GateMessage) {
@@ -239,7 +240,7 @@ func (job *SpotJob) handleOrderFinishEvent(ctx context.Context, order *channel.O
 
 // todo
 func (job *SpotJob) OnOrderBuyed(ctx context.Context, order *channel.Order) {
-	sellPrice := order.Price.Mul(decimal.NewFromInt(1).Add(decimal.NewFromFloat(0.8).Add(order.Fee)))
+	sellPrice := order.Price.Mul(decimal.NewFromInt(1).Add(job.Gap).Add(order.Fee.DivRound(order.Amount, 6)))
 	newSellOrder, _, err := job.Client.SpotApi.CreateOrder(ctx, gateapi.Order{
 		Account:      "spot",
 		Text:         order.Text,
