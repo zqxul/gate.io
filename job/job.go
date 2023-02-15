@@ -27,7 +27,7 @@ func NewSpotJob(currencyPair string, client *gateapi.APIClient) *SpotJob {
 	return &SpotJob{
 		CurrencyPair: currencyPair,
 		Client:       client,
-		Gap:          decimal.NewFromFloat(0.01),
+		Gap:          decimal.NewFromFloat(0.005),
 		OrderNum:     4,
 	}
 }
@@ -286,7 +286,10 @@ func (job *SpotJob) OnOrderSelled(ctx context.Context, order *channel.Order) {
 		log.Printf("OnOrderSelled get buy order err: %v", err)
 		return
 	}
-	log.Printf("OnOrderSelled find buy order, [buy: %v, amount: %v]----[sell: %v, amount: %v]", buyOrder.Price, buyOrder.Account, order.Price, order.Amount)
+	buyOrderFee, _ := decimal.NewFromString(buyOrder.Fee)
+	totalFee := order.Fee.Sub(buyOrderFee)
+	profit := order.Price.Mul(order.Amount).Sub(totalFee)
+	log.Printf("OnOrderSelled find buy order, [buy: %v, amount: %v]----[sell: %v, amount: %v, fee: %v, profit: %v]", buyOrder.Price, buyOrder.Account, order.Price, order.Amount, totalFee, profit)
 	newOrderPrice, _ := decimal.NewFromString(buyOrder.Price)
 	newOrderAmount, _ := decimal.NewFromString(buyOrder.Amount)
 	job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, newOrderPrice, newOrderAmount)
