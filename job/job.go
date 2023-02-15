@@ -287,9 +287,9 @@ func (job *SpotJob) OnOrderSelled(ctx context.Context, order *channel.Order) {
 		return
 	}
 	buyOrderFee, _ := decimal.NewFromString(buyOrder.Fee)
-	totalFee := order.Fee.Sub(buyOrderFee)
+	totalFee := order.Fee.Add(buyOrderFee)
 	profit := order.Price.Mul(order.Amount).Sub(totalFee)
-	log.Printf("OnOrderSelled find buy order, [buy: %v, amount: %v]----[sell: %v, amount: %v, fee: %v, profit: %v]", buyOrder.Price, buyOrder.Account, order.Price, order.Amount, totalFee, profit)
+	log.Printf("OnOrderSelled find buy order, [buy: %v, amount: %v]----[sell: %v, amount: %v]----[fee: %v, profit: %v]", buyOrder.Price, buyOrder.Account, order.Price, order.Amount, totalFee, profit)
 	newOrderPrice, _ := decimal.NewFromString(buyOrder.Price)
 	newOrderAmount, _ := decimal.NewFromString(buyOrder.Amount)
 	job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, newOrderPrice, newOrderAmount)
