@@ -54,6 +54,11 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 		case <-ticker.C:
 			job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
+			if len(orders) == 0 {
+				_, bidPrice := job.lookupMarketPrice(ctx)
+				amount := job.Fund.Div(bidPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
+				job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
+			}
 			log.Printf("*******************************************************[current orders]*******************************************************")
 			for i, order := range orders {
 				log.Printf("\t\t [%s]-[%s] with [price: %s, amount: %s/%s] was created at %s\n", order.Text, order.Side, order.Price, order.Left, order.Amount, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
@@ -196,11 +201,6 @@ func (job *SpotJob) currentOrders(ctx context.Context, side string) []gateapi.Or
 	if err != nil {
 		log.Printf("handlePutEvent job.Client.SpotApi.ListOrders err: %v", err)
 		return make([]gateapi.Order, 0)
-	}
-	if len(openOrders) == 0 {
-		_, bidPrice := job.lookupMarketPrice(ctx)
-		amount := job.Fund.Div(bidPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
-		job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
 	}
 	return openOrders
 }
