@@ -51,7 +51,7 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			job.lookupMarketPrice(ctx)
-			orders := job.currentOrders(ctx, channel.SpotChannelOrderSideBuy)
+			orders := job.currentOrders(ctx, "")
 			log.Printf("*******************************************************[current orders]*******************************************************")
 			for i, order := range orders {
 				log.Printf("\t\t [%s]-[%s] with [price: %s, amount: %s/%s] was created at %s\n", order.Text, order.Side, order.Price, order.Left, order.Amount, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
@@ -226,7 +226,7 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 	orderAmount := price.Mul(decimal.NewFromInt(1).Sub(job.Gap)).Mul(amount)
 	usdtAcct := job.account(ctx)
 	accountAvailable, _ := decimal.NewFromString(usdtAcct.Available)
-	log.Printf("start create buy order, [orderAmount: %v, accountAvailable: %v, current order num: %v, job order num: %v]", orderAmount, accountAvailable, len(buyOrders), job.OrderNum)
+	log.Printf("Start create buy order, [orderAmount: %v, accountAvailable: %v, current buy order num: %v, job order num: %v]", orderAmount, accountAvailable, len(buyOrders), job.OrderNum)
 	if orderAmount.LessThan(accountAvailable) && len(buyOrders) < job.OrderNum && orderAmount.GreaterThanOrEqual(decimal.NewFromFloat(1)) {
 		time.Sleep(1 * time.Second)
 		_, _, err := job.Client.SpotApi.CreateOrder(ctx, gateapi.Order{
