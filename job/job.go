@@ -21,18 +21,20 @@ type SpotJob struct {
 	Client       *gateapi.APIClient
 	Gap          decimal.Decimal
 	OrderNum     int
+	Fund         decimal.Decimal
 }
 
-func NewSpotJob(currencyPair string, client *gateapi.APIClient) *SpotJob {
+func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient) *SpotJob {
 	return &SpotJob{
 		CurrencyPair: currencyPair,
 		Client:       client,
 		Gap:          decimal.NewFromFloat(0.005),
 		OrderNum:     4,
+		Fund:         decimal.NewFromFloat(fund),
 	}
 }
 
-func (job *SpotJob) Start(fund decimal.Decimal, ws *websocket.Conn) {
+func (job *SpotJob) Start(ws *websocket.Conn) {
 	if err := job.subscribe(ws); err != nil {
 		log.Printf("start job subscribe %s, err: %v", job.CurrencyPair, err)
 		return
@@ -41,7 +43,7 @@ func (job *SpotJob) Start(fund decimal.Decimal, ws *websocket.Conn) {
 	go job.beat(ctx, ws)
 	go job.listen(ctx, ws)
 	go job.refreshOrderBook(ctx)
-	go job.fund(ctx, fund)
+	go job.fund(ctx, job.Fund)
 }
 
 func (job SpotJob) refreshOrderBook(ctx context.Context) {
@@ -194,6 +196,11 @@ func (job *SpotJob) currentOrders(ctx context.Context, side string) []gateapi.Or
 	if err != nil {
 		log.Printf("handlePutEvent job.Client.SpotApi.ListOrders err: %v", err)
 		return make([]gateapi.Order, 0)
+	}
+	if len(openOrders) == 0 {
+		_, bidPrice := job.lookupMarketPrice(ctx)
+		amount := job.Fund.Div(bidPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
+		job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
 	}
 	return openOrders
 }
