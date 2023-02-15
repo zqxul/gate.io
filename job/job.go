@@ -47,7 +47,7 @@ func (job *SpotJob) Start(ws *websocket.Conn) {
 }
 
 func (job SpotJob) refreshOrderBook(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -231,10 +231,9 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 		})
 		topPrice, _ := decimal.NewFromString(buyOrders[0].Price)
 		newTopPrice := topPrice.Mul(decimal.NewFromInt(1).Add(job.Gap))
+		fmt.Printf("orderPrice: %v, topPrice: %v", orderPrice, topPrice)
 		if newTopPrice.LessThan(orderPrice) {
 			orderPrice = newTopPrice
-		} else if newTopPrice.Equal(orderPrice) {
-			return
 		}
 	}
 
