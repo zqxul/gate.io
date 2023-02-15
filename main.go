@@ -30,7 +30,7 @@ func main() {
 		panic(err)
 	}
 	c.SetPingHandler(nil)
-	spotJob.Start(decimal.NewFromFloat(2.87), c)
+	spotJob.Start(decimal.NewFromFloat(4.87), c)
 
 	select {}
 }

@@ -28,7 +28,7 @@ func NewSpotJob(currencyPair string, client *gateapi.APIClient) *SpotJob {
 		CurrencyPair: currencyPair,
 		Client:       client,
 		Gap:          decimal.NewFromFloat(0.01),
-		OrderNum:     2,
+		OrderNum:     4,
 	}
 }
 
@@ -226,7 +226,8 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 	orderAmount := price.Mul(decimal.NewFromInt(1).Sub(job.Gap)).Mul(amount)
 	usdtAcct := job.account(ctx)
 	accountAvailable, _ := decimal.NewFromString(usdtAcct.Available)
-	if orderAmount.LessThan(accountAvailable) && len(buyOrders) < int(job.OrderNum) && orderAmount.GreaterThanOrEqual(decimal.NewFromFloat(1)) {
+	log.Printf("start create buy order, [orderAmount: %v, accountAvailable: %v, current order num: %v, job order num: %v]", orderAmount, accountAvailable, len(buyOrders), job.OrderNum)
+	if orderAmount.LessThan(accountAvailable) && len(buyOrders) < job.OrderNum && orderAmount.GreaterThanOrEqual(decimal.NewFromFloat(1)) {
 		time.Sleep(1 * time.Second)
 		_, _, err := job.Client.SpotApi.CreateOrder(ctx, gateapi.Order{
 			Account:      "spot",
