@@ -86,11 +86,6 @@ func (job *SpotJob) fund(ctx context.Context, fund decimal.Decimal) {
 	log.Printf("job start with usdt account: [currency: %v, available: %s]", usdtAcct.Currency, usdtAcct.Available)
 	_, bidPrice := job.lookupMarketPrice(ctx)
 	amount := fund.Div(bidPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
-	if amount.LessThan(decimal.NewFromInt(1)) {
-		log.Printf("order amount must be greater than 1, actual is %v. please add more fund or lower order num.", amount)
-		ctx.Done()
-		return
-	}
 	job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
 }
 
@@ -203,6 +198,19 @@ func (job *SpotJob) currentOrders(ctx context.Context, side string) []gateapi.Or
 	return openOrders
 }
 
+func (job *SpotJob) getCurrencyPairMinAmount(ctx context.Context) (decimal.Decimal, decimal.Decimal) {
+	currencyPair, _, err := job.Client.SpotApi.GetCurrencyPair(ctx, channel.CurrencyPairMAPE_USDT)
+	if err != nil {
+		log.Printf("get currency pair err: %v", err)
+		ctx.Done()
+		return decimal.Zero, decimal.Zero
+	}
+	log.Printf("currency pair: %+v", currencyPair)
+	minBaseAmount, _ := decimal.NewFromString(currencyPair.MinBaseAmount)
+	minQuoteAmount, _ := decimal.NewFromString(currencyPair.MinQuoteAmount)
+	return minBaseAmount, minQuoteAmount
+}
+
 func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amount decimal.Decimal) {
 	buyOrders := job.currentOrders(ctx, channel.SpotChannelOrderSideBuy)
 	orderPrice := price.Mul(decimal.NewFromInt(1).Sub(job.Gap))
@@ -222,7 +230,11 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 	}
 
 	// create order
+	minBaseAmount, minQuoteAmount := job.getCurrencyPairMinAmount(ctx)
 	orderAmount := price.Mul(decimal.NewFromInt(1).Sub(job.Gap)).Mul(amount)
+	if orderAmount.LessThan(minQuoteAmount) || amount.LessThan(minBaseAmount) {
+		return
+	}
 	usdtAcct := job.account(ctx)
 	accountAvailable, _ := decimal.NewFromString(usdtAcct.Available)
 	log.Printf("Start create buy order, [orderAmount: %v, accountAvailable: %v, current buy order num: %v, job order num: %v]", orderAmount, accountAvailable, len(buyOrders), job.OrderNum)
