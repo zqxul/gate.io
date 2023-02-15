@@ -22,7 +22,7 @@ func init() {
 }
 
 func main() {
-	spotJob := job.NewSpotJob(channel.CurrencyPairXRP_USDT, client)
+	spotJob := job.NewSpotJob(channel.CurrencyPairMAPE_USDT, client)
 	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
