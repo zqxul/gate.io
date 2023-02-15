@@ -20,7 +20,7 @@ type SpotJob struct {
 	CurrencyPair string
 	Client       *gateapi.APIClient
 	Gap          decimal.Decimal
-	OrderNum     int64
+	OrderNum     int
 }
 
 func NewSpotJob(currencyPair string, client *gateapi.APIClient) *SpotJob {
@@ -40,8 +40,8 @@ func (job *SpotJob) Start(fund decimal.Decimal, ws *websocket.Conn) {
 	ctx := context.TODO()
 	go job.beat(ctx, ws)
 	go job.listen(ctx, ws)
-	go job.fund(ctx, fund)
 	go job.refreshOrderBook(ctx)
+	go job.fund(ctx, fund)
 }
 
 func (job SpotJob) refreshOrderBook(ctx context.Context) {
@@ -85,7 +85,12 @@ func (job *SpotJob) fund(ctx context.Context, fund decimal.Decimal) {
 	usdtAcct := job.account(ctx)
 	log.Printf("job start with usdt account: [currency: %v, available: %s]", usdtAcct.Currency, usdtAcct.Available)
 	_, bidPrice := job.lookupMarketPrice(ctx)
-	amount := fund.Div(bidPrice).Div(decimal.NewFromInt(job.OrderNum)).RoundFloor(6)
+	amount := fund.Div(bidPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
+	if amount.LessThan(decimal.NewFromInt(1)) {
+		log.Printf("order amount must be greater than 1, actual is %v. please add more fund or lower order num.", amount)
+		ctx.Done()
+		return
+	}
 	log.Printf("job start with - [price: %v, amount: %v]", bidPrice, amount)
 	job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
 }
@@ -131,7 +136,7 @@ func (job *SpotJob) beat(ctx context.Context, ws *websocket.Conn) {
 
 func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, decimal.Decimal) {
 	orderBook, _, err := job.Client.SpotApi.ListOrderBook(ctx, job.CurrencyPair, &gateapi.ListOrderBookOpts{
-		Limit: optional.NewInt32(10),
+		Limit: optional.NewInt32(int32(job.OrderNum)),
 	})
 	if err != nil {
 		panic(err)
@@ -189,7 +194,7 @@ func (job *SpotJob) handleOrderUpdateEvent(ctx context.Context, order *channel.O
 
 func (job *SpotJob) currentOrders(ctx context.Context, side string) []gateapi.Order {
 	openOrders, _, err := job.Client.SpotApi.ListOrders(ctx, job.CurrencyPair, channel.SpotChannelOrdersStatusOpen, &gateapi.ListOrdersOpts{
-		Limit: optional.NewInt32(10),
+		Limit: optional.NewInt32(int32(job.OrderNum)),
 		Side:  optional.NewString(side),
 	})
 	if err != nil {
@@ -221,7 +226,7 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 	orderAmount := price.Mul(decimal.NewFromInt(1).Sub(job.Gap)).Mul(amount)
 	usdtAcct := job.account(ctx)
 	accountAvailable, _ := decimal.NewFromString(usdtAcct.Available)
-	if orderAmount.LessThan(accountAvailable) && len(buyOrders) < 10 && orderAmount.GreaterThanOrEqual(decimal.NewFromFloat(1)) {
+	if orderAmount.LessThan(accountAvailable) && len(buyOrders) < int(job.OrderNum) && orderAmount.GreaterThanOrEqual(decimal.NewFromFloat(1)) {
 		time.Sleep(1 * time.Second)
 		_, _, err := job.Client.SpotApi.CreateOrder(ctx, gateapi.Order{
 			Account:      "spot",
