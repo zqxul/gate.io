@@ -313,9 +313,13 @@ func (job *SpotJob) OnOrderSelled(ctx context.Context, order *channel.Order) {
 	log.Printf("Deal [buy: %v, amount: %v]----[sell: %v, amount: %v]----[fee: %v, profit: %v]", buyOrder.Price, buyOrder.Account, order.Price, order.Amount, totalFee, profit)
 	newOrderPrice, _ := decimal.NewFromString(buyOrder.Price)
 	newOrderAmount, _ := decimal.NewFromString(buyOrder.Amount)
-	job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, newOrderPrice, newOrderAmount)
-	if err != nil {
-		log.Printf("OnOrderSelled job.Client.SpotApi.CreateOrder err: %v", err)
-		return
+
+	orders := job.currentOrders(ctx, channel.SpotChannelOrderSideBuy)
+	if len(orders) > 0 && len(orders) < job.OrderNum {
+		job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, newOrderPrice, newOrderAmount)
+		if err != nil {
+			log.Printf("OnOrderSelled job.Client.SpotApi.CreateOrder err: %v", err)
+			return
+		}
 	}
 }
