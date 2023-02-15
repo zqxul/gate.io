@@ -66,14 +66,14 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 				amount := job.Fund.Div(askPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
 				job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, askPrice, amount)
 			}
-			log.Printf("*******************************************************[%s]*******************************************************", job.CurrencyPair)
+			log.Printf("*******************************************************[ %s ]*******************************************************", job.CurrencyPair)
 			for i, order := range orders {
 				log.Printf("\t\t [%s]-[%s] with [price: %s, amount: %s/%s] was created at %s\n", order.Text, order.Side, order.Price, order.Left, order.Amount, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
 				if i < len(orders)-1 {
 					log.Printf("-----------------------------------------------------------------------------------------------------------------------------\n")
 				}
 			}
-			log.Printf("*******************************************************[%s]*******************************************************\n\n\n", job.CurrencyPair)
+			log.Printf("*******************************************************[ %s ]*******************************************************\n\n\n", job.CurrencyPair)
 		case <-ctx.Done():
 			return
 		}
