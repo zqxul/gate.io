@@ -31,7 +31,7 @@ func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient) *S
 	return &SpotJob{
 		CurrencyPair: currencyPair,
 		Client:       client,
-		Gap:          decimal.NewFromFloat(0.005),
+		Gap:          decimal.NewFromFloat(0.002),
 		OrderNum:     4,
 		Fund:         decimal.NewFromFloat(fund),
 	}
