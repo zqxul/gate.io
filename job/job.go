@@ -31,7 +31,7 @@ func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient) *S
 	return &SpotJob{
 		CurrencyPair: currencyPair,
 		Client:       client,
-		Gap:          decimal.NewFromFloat(0.002),
+		Gap:          decimal.NewFromFloat(0.0003),
 		OrderNum:     4,
 		Fund:         decimal.NewFromFloat(fund),
 	}
@@ -60,11 +60,11 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			_, bidPrice := job.lookupMarketPrice(ctx)
+			askPrice, _ := job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
 			if len(orders) == 0 {
-				amount := job.Fund.Div(bidPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
-				job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
+				amount := job.Fund.Div(askPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
+				job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, askPrice, amount)
 			}
 			log.Printf("*******************************************************[current orders]*******************************************************")
 			for i, order := range orders {
@@ -205,7 +205,7 @@ func (job *SpotJob) currentOrders(ctx context.Context, side string) []gateapi.Or
 }
 
 func (job *SpotJob) getCurrencyPairMinAmount(ctx context.Context) (decimal.Decimal, decimal.Decimal) {
-	currencyPair, _, err := job.Client.SpotApi.GetCurrencyPair(ctx, channel.CurrencyPairMAPE_USDT)
+	currencyPair, _, err := job.Client.SpotApi.GetCurrencyPair(ctx, job.CurrencyPair)
 	if err != nil {
 		log.Printf("get currency pair err: %v", err)
 		ctx.Done()
