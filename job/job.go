@@ -17,11 +17,14 @@ import (
 )
 
 type SpotJob struct {
-	CurrencyPair string
-	Client       *gateapi.APIClient
-	Gap          decimal.Decimal
-	OrderNum     int
-	Fund         decimal.Decimal
+	CurrencyPair   string
+	Client         *gateapi.APIClient
+	Gap            decimal.Decimal
+	OrderNum       int
+	Fund           decimal.Decimal
+	MinBaseAmount  decimal.Decimal
+	MinQuoteAmount decimal.Decimal
+	Account        gateapi.SpotAccount
 }
 
 func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient) *SpotJob {
@@ -34,16 +37,21 @@ func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient) *S
 	}
 }
 
+func (job *SpotJob) init(ctx context.Context) {
+	job.MinBaseAmount, job.MinQuoteAmount = job.getCurrencyPairMinAmount(ctx)
+	job.Account = job.account(ctx)
+}
+
 func (job *SpotJob) Start(ws *websocket.Conn) {
+	ctx := context.TODO()
+	job.init(ctx)
 	if err := job.subscribe(ws); err != nil {
 		log.Printf("start job subscribe %s, err: %v", job.CurrencyPair, err)
 		return
 	}
-	ctx := context.TODO()
 	go job.beat(ctx, ws)
 	go job.listen(ctx, ws)
 	go job.refreshOrderBook(ctx)
-	go job.fund(ctx, job.Fund)
 }
 
 func (job SpotJob) refreshOrderBook(ctx context.Context) {
@@ -52,10 +60,9 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			job.lookupMarketPrice(ctx)
+			_, bidPrice := job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
-			if len(orders) < job.OrderNum {
-				_, bidPrice := job.lookupMarketPrice(ctx)
+			if len(orders) == 0 {
 				amount := job.Fund.Div(bidPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
 				job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
 			}
@@ -86,14 +93,6 @@ func (job *SpotJob) account(ctx context.Context) gateapi.SpotAccount {
 		panic("There has no spot account")
 	}
 	return accounts[0]
-}
-
-func (job *SpotJob) fund(ctx context.Context, fund decimal.Decimal) {
-	usdtAcct := job.account(ctx)
-	log.Printf("job start with usdt account: [currency: %v, available: %s]", usdtAcct.Currency, usdtAcct.Available)
-	_, bidPrice := job.lookupMarketPrice(ctx)
-	amount := fund.Div(bidPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
-	job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
 }
 
 func (job *SpotJob) listen(ctx context.Context, ws *websocket.Conn) {
@@ -237,13 +236,11 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 	}
 
 	// create order
-	minBaseAmount, minQuoteAmount := job.getCurrencyPairMinAmount(ctx)
 	orderAmount := price.Mul(decimal.NewFromInt(1).Sub(job.Gap)).Mul(amount)
-	if orderAmount.LessThan(minQuoteAmount) || amount.LessThan(minBaseAmount) {
+	if orderAmount.LessThan(job.MinQuoteAmount) || amount.LessThan(job.MinBaseAmount) {
 		return
 	}
-	usdtAcct := job.account(ctx)
-	accountAvailable, _ := decimal.NewFromString(usdtAcct.Available)
+	accountAvailable, _ := decimal.NewFromString(job.Account.Available)
 	log.Printf("Start create buy order, [orderAmount: %v, accountAvailable: %v, current buy order num: %v, job order num: %v]", orderAmount, accountAvailable, len(buyOrders), job.OrderNum)
 	if orderAmount.LessThan(accountAvailable) && len(buyOrders) < job.OrderNum {
 		time.Sleep(1 * time.Second)
