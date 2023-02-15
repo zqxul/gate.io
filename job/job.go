@@ -91,7 +91,6 @@ func (job *SpotJob) fund(ctx context.Context, fund decimal.Decimal) {
 		ctx.Done()
 		return
 	}
-	log.Printf("job start with - [price: %v, amount: %v]", bidPrice, amount)
 	job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, bidPrice, amount)
 }
 
