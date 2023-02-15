@@ -182,7 +182,6 @@ func (job *SpotJob) handleUpdateEvent(ctx context.Context, result string) {
 
 func (job *SpotJob) handleOrderUpdateEvent(ctx context.Context, order *channel.Order) {
 	log.Printf("order [%s]-[%s] was updated: [price: %s, amount: %s/%s, fee: %s/%s]", order.Text, order.Side, order.Price, order.Amount.Sub(order.Left), order.Amount, order.Fee, order.FeeCurrency)
-
 }
 
 func (job *SpotJob) currentOrders(ctx context.Context, side string) []gateapi.Order {
