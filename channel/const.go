@@ -25,7 +25,7 @@ const (
 
 const (
 	SpotChannelOrderSideBuy  = "buy"
-	SpotChannelOrderSideSell = "Sell"
+	SpotChannelOrderSideSell = "sell"
 )
 
 const (
