@@ -231,7 +231,6 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 		})
 		topPrice, _ := decimal.NewFromString(buyOrders[0].Price)
 		newTopPrice := topPrice.Mul(decimal.NewFromInt(1).Add(job.Gap))
-		fmt.Printf("orderPrice: %v, topPrice: %v", orderPrice, topPrice)
 		if newTopPrice.LessThan(orderPrice) {
 			orderPrice = newTopPrice
 		}
