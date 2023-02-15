@@ -202,6 +202,8 @@ func (job *SpotJob) currentOrders(ctx context.Context, side string) []gateapi.Or
 func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amount decimal.Decimal) {
 	buyOrders := job.currentOrders(ctx, channel.SpotChannelOrderSideBuy)
 	orderPrice := price.Mul(decimal.NewFromInt(1).Sub(job.Gap))
+
+	// choose a better oder price
 	if len(buyOrders) > 0 {
 		sort.Slice(buyOrders, func(i, j int) bool {
 			left, _ := decimal.NewFromString(buyOrders[i].Price)
@@ -215,6 +217,7 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 		}
 	}
 
+	// create order
 	orderAmount := price.Mul(decimal.NewFromInt(1).Sub(job.Gap)).Mul(amount)
 	usdtAcct := job.account(ctx)
 	accountAvailable, _ := decimal.NewFromString(usdtAcct.Available)
