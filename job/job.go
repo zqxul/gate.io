@@ -284,7 +284,7 @@ func (job *SpotJob) OnOrderBuyed(ctx context.Context, order *channel.Order) {
 	job.refreshAccount(ctx)
 	newSellOrder, _, err := job.Client.SpotApi.CreateOrder(ctx, gateapi.Order{
 		Account:      "spot",
-		Text:         order.Text,
+		Text:         fmt.Sprintf("t-%s", order.Id),
 		CurrencyPair: job.CurrencyPair,
 		Side:         channel.SpotChannelOrderSideSell,
 		Price:        sellPrice.String(),
@@ -298,7 +298,7 @@ func (job *SpotJob) OnOrderBuyed(ctx context.Context, order *channel.Order) {
 }
 
 func (job *SpotJob) OnOrderSelled(ctx context.Context, order *channel.Order) {
-	buyOrder, _, err := job.Client.SpotApi.GetOrder(ctx, order.Text, job.CurrencyPair, nil)
+	buyOrder, _, err := job.Client.SpotApi.GetOrder(ctx, order.Text[2:], job.CurrencyPair, nil)
 	if err != nil {
 		log.Printf("OnOrderSelled get buy order err: %v", err)
 		return
