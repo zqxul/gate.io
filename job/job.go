@@ -38,8 +38,9 @@ func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient) *S
 }
 
 func (job *SpotJob) init(ctx context.Context) {
-	job.MinBaseAmount, job.MinQuoteAmount = job.getCurrencyPairMinAmount(ctx)
 	job.refreshAccount(ctx)
+	log.Printf("Spot Account: [Currency: %v, Available: %v]", job.Account.Currency, job.Account.Available)
+	job.MinBaseAmount, job.MinQuoteAmount = job.getCurrencyPairMinAmount(ctx)
 }
 
 func (job *SpotJob) Start(ws *websocket.Conn) {
@@ -55,7 +56,7 @@ func (job *SpotJob) Start(ws *websocket.Conn) {
 }
 
 func (job SpotJob) refreshOrderBook(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -211,7 +212,7 @@ func (job *SpotJob) getCurrencyPairMinAmount(ctx context.Context) (decimal.Decim
 		ctx.Done()
 		return decimal.Zero, decimal.Zero
 	}
-	log.Printf("currency pair: %+v", currencyPair)
+	log.Printf("Currency Pair: %+v", currencyPair)
 	minBaseAmount, _ := decimal.NewFromString(currencyPair.MinBaseAmount)
 	minQuoteAmount, _ := decimal.NewFromString(currencyPair.MinQuoteAmount)
 	return minBaseAmount, minQuoteAmount
