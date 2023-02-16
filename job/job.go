@@ -282,8 +282,6 @@ func (job *SpotJob) handleOrderFinishEvent(ctx context.Context, order *channel.O
 func (job *SpotJob) OnOrderBuyed(ctx context.Context, order *channel.Order) {
 	sellPrice := order.Price.Mul(decimal.NewFromInt(1).Add(job.Gap).Add(order.Fee.DivRound(order.Amount, 6)))
 	job.refreshAccount(ctx)
-	fmt.Printf("balance::::%s", job.Account.Available)
-	fmt.Printf("order info::::%+v", order)
 	newSellOrder, _, err := job.Client.SpotApi.CreateOrder(ctx, gateapi.Order{
 		Account:      "spot",
 		Text:         order.Text,
