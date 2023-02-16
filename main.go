@@ -21,6 +21,13 @@ func init() {
 }
 
 func main() {
+	go BABY()
+	go AVT()
+
+	select {}
+}
+
+func BABY() {
 	spotJob := job.NewSpotJob(channel.CurrencyPairBABY_USDT, 20, client)
 	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
@@ -30,6 +37,16 @@ func main() {
 	}
 	c.SetPingHandler(nil)
 	spotJob.Start(c)
+}
 
-	select {}
+func AVT() {
+	spotJob := job.NewSpotJob(channel.CurrencyPairAVT_USDT, 100, client)
+	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
+	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
+	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		panic(err)
+	}
+	c.SetPingHandler(nil)
+	spotJob.Start(c)
 }

@@ -29,6 +29,7 @@ const (
 )
 
 const (
+	CurrencyPairAVT_USDT  = "AVT_USDT"
 	CurrencyPairBABY_USDT = "BABY_USDT"
 	CurrencyPairXRP_USDT  = "XRP_USDT"
 	CurrencyPairMAPE_USDT = "MAPE_USDT"
