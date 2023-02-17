@@ -11,6 +11,7 @@ import (
 )
 
 var client *gateapi.APIClient
+var socket *websocket.Conn
 
 func init() {
 	cfg := gateapi.NewConfiguration()
@@ -18,47 +19,19 @@ func init() {
 	cfg.Secret = channel.Secret
 	client = gateapi.NewAPIClient(cfg)
 	// client.ChangeBasePath("https://fx-api-testnet.gateio.ws/api/v4")
+
+	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
+	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
+	socket, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		panic(err)
+	}
+	socket.SetPingHandler(nil)
 }
 
 func main() {
-	go BABY()
-	go AVT()
-	go CORE()
+	go job.NewSpotJob(channel.CurrencyPairBABY_USDT, 20, client, socket).Start()
+	go job.NewSpotJob(channel.CurrencyPairAVT_USDT, 100, client, socket).Start()
+	go job.NewSpotJob(channel.CurrencyPairCORE_USDT, 100, client, socket).Start()
 	select {}
-}
-
-func BABY() {
-	spotJob := job.NewSpotJob(channel.CurrencyPairBABY_USDT, 20, client)
-	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
-	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		panic(err)
-	}
-	c.SetPingHandler(nil)
-	spotJob.Start(c)
-}
-
-func AVT() {
-	spotJob := job.NewSpotJob(channel.CurrencyPairAVT_USDT, 100, client)
-	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
-	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		panic(err)
-	}
-	c.SetPingHandler(nil)
-	spotJob.Start(c)
-}
-
-func CORE() {
-	spotJob := job.NewSpotJob(channel.CurrencyPairCORE_USDT, 100, client)
-	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
-	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		panic(err)
-	}
-	c.SetPingHandler(nil)
-	spotJob.Start(c)
 }

@@ -19,6 +19,7 @@ import (
 type SpotJob struct {
 	CurrencyPair   string
 	Client         *gateapi.APIClient
+	Socket         *websocket.Conn
 	Gap            decimal.Decimal
 	OrderNum       int
 	Fund           decimal.Decimal
@@ -27,7 +28,7 @@ type SpotJob struct {
 	Account        gateapi.SpotAccount
 }
 
-func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient) *SpotJob {
+func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient, socket *websocket.Conn) *SpotJob {
 	return &SpotJob{
 		CurrencyPair: currencyPair,
 		Client:       client,
@@ -43,15 +44,15 @@ func (job *SpotJob) init(ctx context.Context) {
 	job.MinBaseAmount, job.MinQuoteAmount = job.getCurrencyPairMinAmount(ctx)
 }
 
-func (job *SpotJob) Start(ws *websocket.Conn) {
+func (job *SpotJob) Start() {
 	ctx := context.TODO()
 	job.init(ctx)
-	if err := job.subscribe(ws); err != nil {
+	if err := job.subscribe(job.Socket); err != nil {
 		log.Printf("start job subscribe %s, err: %v", job.CurrencyPair, err)
 		return
 	}
-	go job.beat(ctx, ws)
-	go job.listen(ctx, ws)
+	go job.beat(ctx, job.Socket)
+	go job.listen(ctx, job.Socket)
 	go job.refreshOrderBook(ctx)
 }
 
