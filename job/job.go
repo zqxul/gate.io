@@ -62,12 +62,13 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			askPrice, _ := job.lookupMarketPrice(ctx)
+			askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
 			if len(orders) == 0 {
 				amount := job.Fund.Div(askPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
 				job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, askPrice, amount)
 			}
+			log.Printf("**************** %v - Ask :::::::::::::::::::: - Market - :::::::::::::::::::: Bid - %v ****************\n", askPrice, bidPrice)
 			log.Printf("*******************************************************[ %s ]*******************************************************", job.CurrencyPair)
 			for i, order := range orders {
 				log.Printf("\t\t [%s]-[%s] with [price: %s, amount: %s/%s] was created at %s\n", order.Text, order.Side, order.Price, order.Left, order.Amount, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
@@ -136,7 +137,7 @@ func (job *SpotJob) beat(ctx context.Context, ws *websocket.Conn) {
 	}
 }
 
-func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, decimal.Decimal) {
+func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, decimal.Decimal, decimal.Decimal, decimal.Decimal) {
 	orderBook, _, err := job.Client.SpotApi.ListOrderBook(ctx, job.CurrencyPair, &gateapi.ListOrderBookOpts{
 		Limit: optional.NewInt32(int32(job.OrderNum)),
 	})
@@ -144,9 +145,10 @@ func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, dec
 		panic(err)
 	}
 	askPrice, _ := decimal.NewFromString(orderBook.Asks[0][0])
+	askAmount, _ := decimal.NewFromString(orderBook.Asks[0][1])
 	bidPrice, _ := decimal.NewFromString(orderBook.Bids[0][0])
-	log.Printf("**************** %v - Ask :::::::::::::::::::: - Market - :::::::::::::::::::: Bid - %v ****************\n", orderBook.Asks[0], orderBook.Bids[0])
-	return askPrice, bidPrice
+	bidAmount, _ := decimal.NewFromString(orderBook.Bids[0][1])
+	return askPrice, askAmount, bidPrice, bidAmount
 }
 
 func (job *SpotJob) HandleMessage(ctx context.Context, message *channel.GateMessage) {
