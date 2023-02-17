@@ -34,7 +34,7 @@ func GetSocket() *websocket.Conn {
 func main() {
 	go job.NewSpotJob(channel.CurrencyPairBABY_USDT, 20, client, GetSocket()).Start()
 	go job.NewSpotJob(channel.CurrencyPairAVT_USDT, 100, client, GetSocket()).Start()
-	go job.NewSpotJob(channel.CurrencyPairBSW_USDT, 100, client, GetSocket()).Start()
+	go job.NewSpotJob(channel.CurrencyPairBSW_USDT, 50, client, GetSocket()).Start()
 	go job.NewSpotJob(channel.CurrencyPairCORE_USDT, 100, client, GetSocket()).Start()
 	select {}
 }
