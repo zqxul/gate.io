@@ -11,7 +11,6 @@ import (
 )
 
 var client *gateapi.APIClient
-var socket *websocket.Conn
 
 func init() {
 	cfg := gateapi.NewConfiguration()
@@ -19,7 +18,9 @@ func init() {
 	cfg.Secret = channel.Secret
 	client = gateapi.NewAPIClient(cfg)
 	// client.ChangeBasePath("https://fx-api-testnet.gateio.ws/api/v4")
+}
 
+func GetSocket() *websocket.Conn {
 	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
 	socket, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -27,11 +28,12 @@ func init() {
 		panic(err)
 	}
 	socket.SetPingHandler(nil)
+	return socket
 }
 
 func main() {
-	go job.NewSpotJob(channel.CurrencyPairBABY_USDT, 20, client, socket).Start()
-	go job.NewSpotJob(channel.CurrencyPairAVT_USDT, 100, client, socket).Start()
-	go job.NewSpotJob(channel.CurrencyPairCORE_USDT, 100, client, socket).Start()
+	go job.NewSpotJob(channel.CurrencyPairBABY_USDT, 20, client, GetSocket()).Start()
+	go job.NewSpotJob(channel.CurrencyPairAVT_USDT, 100, client, GetSocket()).Start()
+	go job.NewSpotJob(channel.CurrencyPairCORE_USDT, 100, client, GetSocket()).Start()
 	select {}
 }
