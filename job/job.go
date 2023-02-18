@@ -65,7 +65,7 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 		case <-ticker.C:
 			askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
-			if len(orders) == 0 {
+			if len(orders) < 10 {
 				amount := job.Fund.Div(askPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
 				job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, askPrice, amount)
 			}
@@ -259,7 +259,7 @@ func (job *SpotJob) CreateBuyOrder(ctx context.Context, side string, price, amou
 			Amount:       amount.String(),
 		})
 		if err != nil {
-			log.Printf("handlePutEvent job.Client.SpotApi.CreateOrder err: %+v", err)
+			log.Printf("job.Client.SpotApi.CreateOrder err: %+v", err)
 			return
 		}
 	}
