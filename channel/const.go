@@ -36,6 +36,7 @@ const (
 	CurrencyPairBIFI_USDT = "BIFI_USDT"
 	CurrencyPairXRP_USDT  = "XRP_USDT"
 	CurrencyPairMAPE_USDT = "MAPE_USDT"
+	CurrencyPairDOGE_USDT = "DOGE_USDT"
 )
 
 const (
