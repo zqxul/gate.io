@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/url"
 	"sort"
 	"sync"
@@ -77,6 +78,7 @@ func (job *SpotJob) init(ctx context.Context) {
 }
 
 func (job *SpotJob) Start(ctx context.Context) {
+	time.Sleep(time.Second * time.Duration(rand.Intn(120)))
 	job.init(ctx)
 	job.subscribe()
 	go job.beat(ctx, job.Socket)
