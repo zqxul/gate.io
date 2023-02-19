@@ -32,11 +32,11 @@ func sign(channel, event string, t int64) string {
 	return hex.EncodeToString(h2.Sum(nil))
 }
 
-func (m *Message) Sign() {
+func (m *Message) Sign(key string) {
 	signStr := sign(m.Channel, m.Event, m.Time)
 	m.Auth = &Auth{
 		Method: "api_key",
-		KEY:    Key,
+		KEY:    key,
 		SIGN:   signStr,
 	}
 }

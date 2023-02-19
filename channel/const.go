@@ -3,6 +3,9 @@ package channel
 const (
 	Key    = "6f809534c02fc7931c14135547270d01"
 	Secret = "daa6a7f8c28fced4d46f6ac58b6d5545f10a35f863d6aeb4e1970281698b5614"
+
+	SecondKey    = "b5b582e3a6f62ccc4775e112cc85cc6a"
+	SecondSecret = "06a847603eba515c39423b31b00627737244b170761886ea0c8530de1e153063"
 )
 
 const (

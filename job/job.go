@@ -26,9 +26,10 @@ type SpotJob struct {
 	MinBaseAmount  decimal.Decimal
 	MinQuoteAmount decimal.Decimal
 	Account        gateapi.SpotAccount
+	Key            string
 }
 
-func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient, socket *websocket.Conn) *SpotJob {
+func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient, socket *websocket.Conn, key string) *SpotJob {
 	return &SpotJob{
 		CurrencyPair: currencyPair,
 		Client:       client,
@@ -36,6 +37,7 @@ func NewSpotJob(currencyPair string, fund float64, client *gateapi.APIClient, so
 		OrderNum:     10,
 		Fund:         decimal.NewFromFloat(fund),
 		Socket:       socket,
+		Key:          key,
 	}
 }
 
@@ -66,7 +68,7 @@ func (job SpotJob) refreshOrderBook(ctx context.Context) {
 			askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
 			if len(orders) < 10 {
-				amount := job.Fund.Div(askPrice).Div(decimal.NewFromInt(int64(job.OrderNum))).RoundFloor(6)
+				amount := job.Fund.Div(decimal.NewFromInt(int64(job.OrderNum))).Div(askPrice).RoundFloor(6)
 				job.CreateBuyOrder(ctx, channel.SpotChannelOrderSideBuy, askPrice, amount)
 			}
 			log.Printf("**************** %v - Ask :::::::::::::::::::: - Market - :::::::::::::::::::: Bid - %v ****************\n", askPrice, bidPrice)
@@ -117,7 +119,7 @@ func (job *SpotJob) listen(ctx context.Context, ws *websocket.Conn) {
 func (job *SpotJob) subscribe(ws *websocket.Conn) error {
 	t := time.Now().Unix()
 	ordersMsg := channel.NewMsg("spot.orders", "subscribe", t, []string{job.CurrencyPair})
-	ordersMsg.Sign()
+	ordersMsg.Sign(job.Key)
 	return ordersMsg.Send(ws)
 }
 
