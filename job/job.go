@@ -334,7 +334,7 @@ func (job *SpotJob) OnOrderBuyed(ctx context.Context, order *channel.Order) {
 	sellPrice := order.Price.
 		Mul(decimal.NewFromInt(1).
 			Add(job.Gap).
-			Add(order.Fee.Div(order.Amount).Mul(decimal.NewFromInt(2)))).
+			Add(order.Fee.Add(order.PointFee).Add(order.GtFee).Add(order.RebatedFee).Div(order.Amount).Mul(decimal.NewFromInt(2)))).
 		Round(job.CurrencyPair.Precision)
 	_, _, err := job.Client.SpotApi.CreateOrder(ctx, gateapi.Order{
 		Account:      "spot",
