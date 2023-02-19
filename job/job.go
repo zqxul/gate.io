@@ -79,8 +79,8 @@ func (job *SpotJob) init(ctx context.Context) {
 
 func (job *SpotJob) Start(ctx context.Context) {
 	time.Sleep(time.Second * time.Duration(rand.Intn(120)))
-	log.Printf("[ %s ] job start", job.CurrencyPair.Base)
 	job.init(ctx)
+	log.Printf("[ %s ] job prepared", job.CurrencyPair.Base)
 	job.subscribe()
 	go job.beat(ctx, job.Socket)
 	go job.listen(ctx, job.Socket)
