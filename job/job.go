@@ -20,7 +20,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var globalMux *sync.Mutex
+var globalMux sync.Mutex
 
 type SpotJob struct {
 	Client       *gateapi.APIClient
