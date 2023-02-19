@@ -82,10 +82,11 @@ func (job *SpotJob) Start(ctx context.Context) {
 	job.subscribe()
 	go job.beat(ctx, job.Socket)
 	go job.listen(ctx, job.Socket)
-	go job.refreshOrderBook(ctx)
+
 	log.Printf("[ %s ] job prepared", job.CurrencyPair.Base)
 	time.Sleep(time.Second * time.Duration(rand.Intn(120)))
-	go job.refreshOrders(ctx)
+	go job.refresh(ctx)
+	go job.refreshOrderBook(ctx)
 }
 
 func (job *SpotJob) getCurrencyAccount(ctx context.Context, currency string) *gateapi.SpotAccount {
@@ -107,6 +108,19 @@ func (job *SpotJob) getCurrencyAccount(ctx context.Context, currency string) *ga
 	return &account
 }
 
+func (job *SpotJob) refresh(ctx context.Context) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			job.refreshOrders(ctx)
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 func (job *SpotJob) refreshOrderBook(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
@@ -114,7 +128,6 @@ func (job *SpotJob) refreshOrderBook(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
-			job.refreshOrders(ctx)
 			orders := job.currentOrders(ctx, "")
 			log.Printf("**************** %v - Ask :::::::::::::::::::: - Market - :::::::::::::::::::: Bid - %v ****************\n", askPrice, bidPrice)
 			log.Printf("*******************************************************[ %s ]*******************************************************\n", job.CurrencyPair.Base)
