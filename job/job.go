@@ -78,13 +78,13 @@ func (job *SpotJob) init(ctx context.Context) {
 }
 
 func (job *SpotJob) Start(ctx context.Context) {
-	time.Sleep(time.Second * time.Duration(rand.Intn(120)))
 	job.init(ctx)
-	log.Printf("[ %s ] job prepared", job.CurrencyPair.Base)
 	job.subscribe()
 	go job.beat(ctx, job.Socket)
 	go job.listen(ctx, job.Socket)
 	go job.refreshOrderBook(ctx)
+	log.Printf("[ %s ] job prepared", job.CurrencyPair.Base)
+	time.Sleep(time.Second * time.Duration(rand.Intn(120)))
 	go job.refreshOrders(ctx)
 }
 
