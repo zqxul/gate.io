@@ -282,7 +282,7 @@ func (job *SpotJob) refreshOrders(ctx context.Context) {
 		})
 		topOrderPrice, _ := decimal.NewFromString(buyOrders[0].Price)
 		topOrderPrice = topOrderPrice.Mul(decimal.NewFromFloat(1).Add(job.Gap)).RoundFloor(job.CurrencyPair.Precision)
-		if topOrderPrice.LessThan(nextOrderPrice) {
+		if topOrderPrice.LessThanOrEqual(nextOrderPrice) {
 			bottomOrderPrice, _ := decimal.NewFromString(buyOrders[len(buyOrders)-1].Price)
 			nextOrderPrice = bottomOrderPrice.Mul(decimal.NewFromInt(1).Sub(job.Gap)).RoundFloor(job.CurrencyPair.Precision)
 		}
@@ -330,7 +330,7 @@ func (job *SpotJob) handleOrderFinishEvent(ctx context.Context, order *channel.O
 }
 
 func (job *SpotJob) OnOrderBuyed(ctx context.Context, order *channel.Order) {
-	log.Printf("Deal %v - [%s] [price: %v, amount: %v]----[fee: %v, left: %v]\n", job.CurrencyPair.Base, order.Side, order.Price, order.Amount, order.Fee.Mul(order.Price).RoundFloor(job.CurrencyPair.Precision), order.Amount.Sub(order.Fee).Round(job.CurrencyPair.AmountPrecision))
+	log.Printf("Deal %v - [%s] [price: %v, amount: %v, left: %v]----[fee: %v, left: %v]\n", job.CurrencyPair.Base, order.Side, order.Price, order.Amount, order.Left, order.Fee.Mul(order.Price).RoundFloor(job.CurrencyPair.Precision), order.Amount.Sub(order.Fee).Round(job.CurrencyPair.AmountPrecision))
 	sellPrice := order.Price.
 		Mul(decimal.NewFromInt(1).
 			Add(job.Gap).

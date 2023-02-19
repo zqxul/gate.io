@@ -35,6 +35,7 @@ const (
 	CurrencyPairCORE_USDT = "CORE_USDT"
 	CurrencyPairAVT_USDT  = "AVT_USDT"
 	CurrencyPairBSW_USDT  = "BSW_USDT"
+	CurrencyPairVGX_USDT  = "VGX_USDT"
 	CurrencyPairBABY_USDT = "BABY_USDT"
 	CurrencyPairBIFI_USDT = "BIFI_USDT"
 	CurrencyPairXRP_USDT  = "XRP_USDT"
