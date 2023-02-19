@@ -79,6 +79,7 @@ func (job *SpotJob) init(ctx context.Context) {
 
 func (job *SpotJob) Start(ctx context.Context) {
 	time.Sleep(time.Second * time.Duration(rand.Intn(120)))
+	log.Printf("[ %s ] job start", job.CurrencyPair.Base)
 	job.init(ctx)
 	job.subscribe()
 	go job.beat(ctx, job.Socket)
