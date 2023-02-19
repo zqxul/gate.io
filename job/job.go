@@ -19,6 +19,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+var globalMux *sync.Mutex
+
 type SpotJob struct {
 	Client       *gateapi.APIClient
 	Socket       *websocket.Conn
@@ -84,6 +86,9 @@ func (job *SpotJob) Start(ctx context.Context) {
 }
 
 func (job *SpotJob) getCurrencyAccount(ctx context.Context, currency string) *gateapi.SpotAccount {
+	globalMux.Lock()
+	defer globalMux.Unlock()
+
 	accounts, _, err := job.Client.SpotApi.ListSpotAccounts(ctx, &gateapi.ListSpotAccountsOpts{
 		Currency: optional.NewString(currency),
 	})
