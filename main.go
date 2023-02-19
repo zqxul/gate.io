@@ -30,7 +30,7 @@ func main() {
 	go job.NewSpotJob(channel.CurrencyPairBIFI_USDT, 50, channel.Key, channel.Secret).Start(context.TODO())
 	go job.NewSpotJob(channel.CurrencyPairBABY_USDT, 50, channel.Key, channel.Secret).Start(context.TODO())
 	go job.NewSpotJob(channel.CurrencyPairAVT_USDT, 50, channel.Key, channel.Secret).Start(context.TODO())
-	go job.NewSpotJob(channel.CurrencyPairBSW_USDT, 50, channel.Key, channel.Secret).Start(context.TODO())
+	// go job.NewSpotJob(channel.CurrencyPairBSW_USDT, 50, channel.Key, channel.Secret).Start(context.TODO())
 	go job.NewSpotJob(channel.CurrencyPairVGX_USDT, 50, channel.Key, channel.Secret).Start(context.TODO())
 	go job.NewSpotJob(channel.CurrencyPairCORE_USDT, 50, channel.Key, channel.Secret).Start(context.TODO())
 	go job.NewSpotJob(channel.CurrencyPairMAPE_USDT, 15, channel.SecondKey, channel.SecondSecret).Start(context.TODO())
