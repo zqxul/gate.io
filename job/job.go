@@ -267,7 +267,7 @@ func (job *SpotJob) refreshOrders(ctx context.Context) {
 	defer job.mux.Unlock()
 
 	askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
-	nextOrderPrice := decimal.Avg(askPrice, bidPrice).Mul(decimal.NewFromInt(1).Sub(job.Gap)).RoundFloor(job.CurrencyPair.Precision)
+	nextOrderPrice := decimal.Avg(askPrice, bidPrice).Mul(decimal.NewFromInt(1).Sub(job.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(job.CurrencyPair.Precision)
 
 	// choose a better oder price
 	buyOrders := job.currentOrders(ctx, channel.SpotChannelOrderSideBuy)
