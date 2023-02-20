@@ -162,7 +162,7 @@ func (job *SpotJob) listen(ctx context.Context, ws *websocket.Conn) {
 func (job *SpotJob) subscribe() {
 	t := time.Now().Unix()
 	ordersMsg := channel.NewMsg("spot.orders", "subscribe", t, []string{job.CurrencyPair.Id})
-	ordersMsg.Sign(job.Key)
+	ordersMsg.Sign(job.Key, job.Secret)
 	if err := ordersMsg.Send(job.Socket); err != nil {
 		panic(err)
 	}

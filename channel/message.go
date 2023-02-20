@@ -25,15 +25,15 @@ type Auth struct {
 	SIGN   string `json:"SIGN"`
 }
 
-func sign(channel, event string, t int64) string {
+func sign(channel, event string, t int64, secret string) string {
 	message := fmt.Sprintf("channel=%s&event=%s&time=%d", channel, event, t)
-	h2 := hmac.New(sha512.New, []byte(Secret))
+	h2 := hmac.New(sha512.New, []byte(secret))
 	io.WriteString(h2, message)
 	return hex.EncodeToString(h2.Sum(nil))
 }
 
-func (m *Message) Sign(key string) {
-	signStr := sign(m.Channel, m.Event, m.Time)
+func (m *Message) Sign(key string, secret string) {
+	signStr := sign(m.Channel, m.Event, m.Time, secret)
 	m.Auth = &Auth{
 		Method: "api_key",
 		KEY:    key,
