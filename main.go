@@ -18,6 +18,6 @@ func main() {
 
 	go job.NewSpotJob(channel.CurrencyPairMAPE_USDT, 15, channel.SecondKey, channel.SecondSecret).Start(context.TODO())
 	go job.NewSpotJob(channel.CurrencyPairVGX_USDT, 65, channel.SecondKey, channel.SecondSecret).Start(context.TODO())
-	go job.NewSpotJob(channel.CurrencyPairBABY_USDT, 50, channel.SecondKey, channel.SecondKey).Start(context.TODO())
+	go job.NewSpotJob(channel.CurrencyPairBABY_USDT, 50, channel.SecondKey, channel.SecondSecret).Start(context.TODO())
 	select {}
 }
