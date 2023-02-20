@@ -58,7 +58,7 @@ func NewSpotJob(currencyPairId string, fund float64, key string, secret string) 
 	job := &SpotJob{
 		Client:       getApiClient(ctx, key, secret),
 		Socket:       getSocket(ctx),
-		Gap:          decimal.NewFromFloat(0.002),
+		Gap:          decimal.NewFromFloat(0.003),
 		OrderNum:     10,
 		OrderAmount:  decimal.NewFromFloat(fund).Div(decimal.NewFromInt(10)).RoundFloor(0),
 		Key:          key,
