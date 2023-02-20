@@ -362,6 +362,6 @@ func (job *SpotJob) OnOrderSelled(ctx context.Context, order *channel.Order) {
 	buyOrderFee, _ := decimal.NewFromString(buyOrder.Fee)
 	totalFee := buyOrderFee.Mul(buyOrderPrice).Add(order.Fee)
 	profit := order.Price.Mul(order.Amount).Sub(buyOrderPrice.Mul(buyOrderAmount)).Sub(order.Fee)
-	log.Printf("Deal %v - [%s] [buy_price: %v, amount: %v, fee: %v]----[sell_price: %v, amount: %v, fee: %v]----[fee: %v, profit: %v]\n", job.CurrencyPair.Base, order.Side, buyOrder.Price, buyOrder.Amount, order.Price.Mul(order.Fee), order.Price, order.Amount, order.Fee, totalFee, profit)
+	log.Printf("Deal %v - [%s] [buy_price: %v, amount: %v, fee: %v]----[sell_price: %v, amount: %v, fee: %v]----[fee: %v, profit: %v]\n", job.CurrencyPair.Base, order.Side, buyOrder.Price, buyOrder.Amount, buyOrderPrice.Mul(buyOrderFee), order.Price, order.Amount, order.Fee, totalFee, profit)
 	job.refreshOrders(ctx)
 }
