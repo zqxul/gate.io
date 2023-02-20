@@ -311,7 +311,7 @@ func (job *SpotJob) refreshOrders(ctx context.Context) {
 		Price:        nextOrderPrice.String(),
 		Amount:       nextOrderAmount.String(),
 	}); err != nil {
-		log.Printf("refreshOrders err: %+v\n", err)
+		log.Printf("[ %s ] refreshOrders err: %+v\n", job.CurrencyPair.Base, err)
 		return
 	}
 }
