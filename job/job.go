@@ -263,7 +263,7 @@ func (job *SpotJob) handleOrderPutEvent(ctx context.Context, order *channel.Orde
 }
 
 func (job *SpotJob) refreshOrders(ctx context.Context) {
-	time.Sleep(time.Second)
+	time.Sleep(5 * time.Second)
 	job.mux.Lock()
 	defer job.mux.Unlock()
 
