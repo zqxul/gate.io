@@ -286,7 +286,7 @@ func (job *SpotJob) refreshOrders(ctx context.Context) {
 		topOrderPrice = topOrderPrice.Mul(decimal.NewFromFloat(1).Add(job.Gap)).RoundFloor(job.CurrencyPair.Precision)
 		if topOrderPrice.LessThanOrEqual(nextOrderPrice) {
 			bottomOrderPrice, _ := decimal.NewFromString(buyOrders[len(buyOrders)-1].Price)
-			nextOrderPrice = bottomOrderPrice.Mul(decimal.NewFromInt(1).Sub(job.Gap)).RoundFloor(job.CurrencyPair.Precision)
+			nextOrderPrice = bottomOrderPrice.Mul(decimal.NewFromInt(1).Sub(job.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(job.CurrencyPair.Precision)
 		}
 	}
 
