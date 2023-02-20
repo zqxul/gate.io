@@ -104,7 +104,6 @@ func (job *SpotJob) getCurrencyAccount(ctx context.Context, currency string) *ga
 		return nil
 	}
 	account := accounts[0]
-	log.Printf("Spot Account: [Currency: %v, Available: %v]\n", account.Currency, account.Available)
 	return &account
 }
 
@@ -127,6 +126,8 @@ func (job *SpotJob) refreshOrderBook(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
+			account := job.getCurrencyAccount(ctx, job.CurrencyPair.Quote)
+			log.Printf("Spot Account: [Currency: %v, Available: %v]\n", account.Currency, account.Available)
 			askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
 			log.Printf("**************** %v - Ask :::::::::::::::::::: - Market - :::::::::::::::::::: Bid - %v ****************\n", askPrice, bidPrice)
@@ -361,6 +362,6 @@ func (job *SpotJob) OnOrderSelled(ctx context.Context, order *channel.Order) {
 	buyOrderFee, _ := decimal.NewFromString(buyOrder.Fee)
 	totalFee := buyOrderFee.Mul(buyOrderPrice).Add(order.Fee)
 	profit := order.Price.Mul(order.Amount).Sub(buyOrderPrice.Mul(buyOrderAmount)).Sub(order.Fee)
-	log.Printf("Deal %v - [%s] [buy_price: %v, amount: %v]----[sell_price: %v, amount: %v]----[fee: %v, profit: %v]\n", job.CurrencyPair.Base, order.Side, buyOrder.Price, buyOrder.Amount, order.Price, order.Amount, totalFee, profit)
+	log.Printf("Deal %v - [%s] [buy_price: %v, amount: %v, fee: %v]----[sell_price: %v, amount: %v, fee: %v]----[fee: %v, profit: %v]\n", job.CurrencyPair.Base, order.Side, buyOrder.Price, buyOrder.Amount, order.Price.Mul(order.Fee), order.Price, order.Amount, order.Fee, totalFee, profit)
 	job.refreshOrders(ctx)
 }
