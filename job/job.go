@@ -135,7 +135,7 @@ func (job *SpotJob) refreshOrderBook(ctx context.Context) {
 			log.Printf("%s [Currency: %-20s            Available: %-20s] %s\n", strings.Repeat("*", 54), account.Currency, account.Available, strings.Repeat("*", 54))
 			log.Printf("%s %v - Ask :::::::::::::::::: - Market - :::::::::::::::::: Bid - %v %s\n", strings.Repeat("*", 54), askPrice, bidPrice, strings.Repeat("*", 54))
 			log.Printf("%s\n", strings.Repeat("*", 185))
-			log.Printf("* %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s *\n", "CURRENCY", "ID", "TEXT", "SIDE", "PRICE", "AMOUNT", "LEFT", "TIME")
+			log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", "CURRENCY", "ID", "TEXT", "SIDE", "PRICE", "AMOUNT", "LEFT", "TIME")
 			log.Printf("%s\n", strings.Repeat("*", 184))
 			for i, order := range orders {
 				log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", job.CurrencyPair.Base, order.Id, order.Text, order.Side, order.Price, order.Amount, order.Left, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
