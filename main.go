@@ -22,5 +22,6 @@ func main() {
 	go job.NewSpotJob(channel.CurrencyPairBLUR_USDT, 50, 0.003, channel.SecondKey, channel.SecondSecret).Start(context.TODO())
 	go job.NewSpotJob(channel.CurrencyPairAVT_USDT, 50, 0.003, channel.SecondKey, channel.SecondSecret).Start(context.TODO())
 	go job.NewSpotJob(channel.CurrencyPairBSW_USDT, 50, 0.003, channel.SecondKey, channel.SecondSecret).Start(context.TODO())
+	go job.NewSpotJob(channel.CurrencyPairCORE_USDT, 50, 0.003, channel.SecondKey, channel.SecondSecret).Start(context.TODO())
 	select {}
 }
