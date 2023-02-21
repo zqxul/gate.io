@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/url"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,12 +54,12 @@ func getSocket(ctx context.Context) *websocket.Conn {
 	return socket
 }
 
-func NewSpotJob(currencyPairId string, fund float64, key string, secret string) *SpotJob {
+func NewSpotJob(currencyPairId string, fund float64, gap float64, key string, secret string) *SpotJob {
 	ctx := context.TODO()
 	job := &SpotJob{
 		Client:       getApiClient(ctx, key, secret),
 		Socket:       getSocket(ctx),
-		Gap:          decimal.NewFromFloat(0.003),
+		Gap:          decimal.NewFromFloat(gap),
 		OrderNum:     10,
 		OrderAmount:  decimal.NewFromFloat(fund).Div(decimal.NewFromInt(10)).RoundFloor(0),
 		Key:          key,
@@ -127,18 +128,23 @@ func (job *SpotJob) refreshOrderBook(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			account := job.getCurrencyAccount(ctx, job.CurrencyPair.Quote)
-			log.Printf("Spot Account: [Currency: %v, Available: %v]\n", account.Currency, account.Available)
 			askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
-			log.Printf("**************** %v - Ask :::::::::::::::::::: - Market - :::::::::::::::::::: Bid - %v ****************\n", askPrice, bidPrice)
-			log.Printf("*******************************************************[ %s ]*******************************************************\n", job.CurrencyPair.Base)
+			log.Printf("\n\n")
+			log.Printf("%s\n", strings.Repeat("*", 185))
+			log.Printf("%s [Currency: %-20s            Available: %-20s] %s\n", strings.Repeat("*", 54), account.Currency, account.Available, strings.Repeat("*", 54))
+			log.Printf("%s %v - Ask :::::::::::::::::: - Market - :::::::::::::::::: Bid - %v %s\n", strings.Repeat("*", 54), askPrice, bidPrice, strings.Repeat("*", 54))
+			log.Printf("%s\n", strings.Repeat("*", 185))
+			log.Printf("* %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s *\n", "CURRENCY", "ID", "TEXT", "SIDE", "PRICE", "AMOUNT", "LEFT", "TIME")
+			log.Printf("%s\n", strings.Repeat("*", 184))
 			for i, order := range orders {
-				log.Printf("\t\t [%s]-[%s] with [price: %s, amount: %s/%s] was created at %s\n", order.Text, order.Side, order.Price, order.Left, order.Amount, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
+				log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", job.CurrencyPair.Base, order.Id, order.Text, order.Side, order.Price, order.Amount, order.Left, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
 				if i < len(orders)-1 {
-					log.Printf("-----------------------------------------------------------------------------------------------------------------------------\n")
+					log.Printf("*%s*\n", strings.Repeat("-", 183))
 				}
 			}
-			log.Printf("*******************************************************[ %s ]*******************************************************\n\n\n", job.CurrencyPair.Base)
+			log.Printf("%s\n", strings.Repeat("*", 185))
+			log.Printf("\n\n")
 		case <-ctx.Done():
 			return
 		}
