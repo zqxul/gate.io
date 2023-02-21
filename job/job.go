@@ -133,7 +133,7 @@ func (job *SpotJob) refreshOrderBook(ctx context.Context) {
 			fmt.Printf("\n\n")
 			log.Printf("%s\n", strings.Repeat("*", 185))
 			log.Printf("%s [Currency: %-20s            Available: %-20s] %s\n", strings.Repeat("*", 54), account.Currency, account.Available, strings.Repeat("*", 54))
-			log.Printf("%s %v - Ask :::::::::::::::::: - Market - :::::::::::::::::: Bid - %v %s\n", strings.Repeat("*", 54), askPrice, bidPrice, strings.Repeat("*", 54))
+			log.Printf("%s %-10s - Ask :::::::::::::::::: - Market - :::::::::::::::::: Bid - %10s %s\n", strings.Repeat("*", 51), askPrice, bidPrice, strings.Repeat("*", 51))
 			log.Printf("%s\n", strings.Repeat("*", 185))
 			log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", "CURRENCY", "ID", "TEXT", "SIDE", "PRICE", "AMOUNT", "LEFT", "TIME")
 			log.Printf("%s\n", strings.Repeat("*", 184))
