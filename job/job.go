@@ -130,7 +130,7 @@ func (job *SpotJob) refreshOrderBook(ctx context.Context) {
 			account := job.getCurrencyAccount(ctx, job.CurrencyPair.Quote)
 			askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
 			orders := job.currentOrders(ctx, "")
-			log.Printf("\n\n")
+			fmt.Printf("\n\n")
 			log.Printf("%s\n", strings.Repeat("*", 185))
 			log.Printf("%s [Currency: %-20s            Available: %-20s] %s\n", strings.Repeat("*", 54), account.Currency, account.Available, strings.Repeat("*", 54))
 			log.Printf("%s %v - Ask :::::::::::::::::: - Market - :::::::::::::::::: Bid - %v %s\n", strings.Repeat("*", 54), askPrice, bidPrice, strings.Repeat("*", 54))
@@ -144,7 +144,7 @@ func (job *SpotJob) refreshOrderBook(ctx context.Context) {
 				}
 			}
 			log.Printf("%s\n", strings.Repeat("*", 185))
-			log.Printf("\n\n")
+			fmt.Printf("\n\n")
 		case <-ctx.Done():
 			return
 		}
