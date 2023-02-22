@@ -163,7 +163,8 @@ func (job *SpotJob) listen(ctx context.Context, ws *websocket.Conn) {
 		}
 		gateMessage := channel.GateMessage{}
 		if err := json.Unmarshal([]byte(message), &gateMessage); err != nil {
-			panic(err)
+			log.Printf("unmarshal gate message err: %v", err)
+			continue
 		}
 		job.HandleMessage(ctx, &gateMessage)
 	}
