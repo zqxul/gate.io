@@ -128,7 +128,10 @@ func (job *SpotJob) refreshOrderBook(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			account := job.getCurrencyAccount(ctx, job.CurrencyPair.Quote)
-			askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
+			askPrice, _, bidPrice, _, err := job.lookupMarketPrice(ctx)
+			if err != nil {
+				continue
+			}
 			orders := job.currentOrders(ctx, "")
 			fmt.Printf("\n\n")
 			log.Printf("%s\n", strings.Repeat("*", 185))
@@ -192,18 +195,19 @@ func (job *SpotJob) beat(ctx context.Context, ws *websocket.Conn) {
 	}
 }
 
-func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, decimal.Decimal, decimal.Decimal, decimal.Decimal) {
+func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, decimal.Decimal, decimal.Decimal, decimal.Decimal, error) {
 	orderBook, _, err := job.Client.SpotApi.ListOrderBook(ctx, job.CurrencyPair.Id, &gateapi.ListOrderBookOpts{
 		Limit: optional.NewInt32(int32(job.OrderNum)),
 	})
 	if err != nil {
-		panic(err)
+		log.Printf("lookupMarketPrice err: %v\n", err)
+		return decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, err
 	}
 	askPrice, _ := decimal.NewFromString(orderBook.Asks[0][0])
 	askAmount, _ := decimal.NewFromString(orderBook.Asks[0][1])
 	bidPrice, _ := decimal.NewFromString(orderBook.Bids[0][0])
 	bidAmount, _ := decimal.NewFromString(orderBook.Bids[0][1])
-	return askPrice, askAmount, bidPrice, bidAmount
+	return askPrice, askAmount, bidPrice, bidAmount, nil
 }
 
 func (job *SpotJob) HandleMessage(ctx context.Context, message *channel.GateMessage) {
@@ -273,7 +277,10 @@ func (job *SpotJob) refreshOrders(ctx context.Context) {
 	job.mux.Lock()
 	defer job.mux.Unlock()
 
-	askPrice, _, bidPrice, _ := job.lookupMarketPrice(ctx)
+	askPrice, _, bidPrice, _, err := job.lookupMarketPrice(ctx)
+	if err != nil {
+		return
+	}
 	nextOrderPrice := decimal.Avg(askPrice, bidPrice).Mul(decimal.NewFromInt(1).Sub(job.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(job.CurrencyPair.Precision)
 
 	// choose a better oder price
