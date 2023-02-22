@@ -90,7 +90,7 @@ func (job *SpotJob) Start(ctx context.Context) {
 	go job.refreshOrderBook(ctx)
 }
 
-func (job *SpotJob) getCurrencyAccount(ctx context.Context, currency string) *gateapi.SpotAccount {
+func (job *SpotJob) getCurrencyAccount(ctx context.Context, currency string) gateapi.SpotAccount {
 	globalMux.Lock()
 	defer globalMux.Unlock()
 
@@ -99,13 +99,13 @@ func (job *SpotJob) getCurrencyAccount(ctx context.Context, currency string) *ga
 	})
 	if err != nil {
 		log.Printf("job start list spot account err: %v", err)
-		return nil
+		return gateapi.SpotAccount{}
 	}
 	if len(accounts) == 0 {
-		return nil
+		return gateapi.SpotAccount{}
 	}
 	account := accounts[0]
-	return &account
+	return account
 }
 
 func (job *SpotJob) refresh(ctx context.Context) {
