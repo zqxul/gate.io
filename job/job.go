@@ -22,10 +22,11 @@ import (
 )
 
 var globalMux sync.Mutex
+var List []*SpotJob = make([]*SpotJob, 0)
 
 type SpotJob struct {
-	Client       *gateapi.APIClient
-	Socket       *websocket.Conn
+	client       *gateapi.APIClient
+	socket       *websocket.Conn
 	CurrencyPair gateapi.CurrencyPair
 	Gap          decimal.Decimal
 	OrderAmount  decimal.Decimal
@@ -34,16 +35,19 @@ type SpotJob struct {
 	Key          string
 	Secret       string
 	mux          sync.Mutex
+	State        [3]bool // [beat,socket,api]
+	Stoped       bool
+	ctx          context.Context
 }
 
-func getApiClient(ctx context.Context, key, secret string) *gateapi.APIClient {
+func getApiClient(key, secret string) *gateapi.APIClient {
 	cfg := gateapi.NewConfiguration()
 	cfg.Key = key
 	cfg.Secret = secret
 	return gateapi.NewAPIClient(cfg)
 }
 
-func getSocket(ctx context.Context) *websocket.Conn {
+func getSocket() *websocket.Conn {
 	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
 	socket, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -55,52 +59,65 @@ func getSocket(ctx context.Context) *websocket.Conn {
 }
 
 func NewSpotJob(currencyPairId string, fund float64, gap float64, key string, secret string) *SpotJob {
-	ctx := context.TODO()
 	job := &SpotJob{
-		Client:       getApiClient(ctx, key, secret),
-		Socket:       getSocket(ctx),
 		Gap:          decimal.NewFromFloat(gap),
 		OrderNum:     10,
 		OrderAmount:  decimal.NewFromFloat(fund).Div(decimal.NewFromInt(10)).RoundFloor(0),
 		Key:          key,
 		Secret:       secret,
 		CurrencyPair: gateapi.CurrencyPair{Id: currencyPairId},
+		ctx:          context.TODO(),
 	}
 	return job
 }
 
-func (job *SpotJob) init(ctx context.Context) {
-	currencyPair, _, err := job.Client.SpotApi.GetCurrencyPair(ctx, job.CurrencyPair.Id)
+func (sj *SpotJob) init() {
+	sj.client = getApiClient(sj.Key, sj.Secret)
+	sj.socket = getSocket()
+	currencyPair, _, err := sj.client.SpotApi.GetCurrencyPair(sj.ctx, sj.CurrencyPair.Id)
 	if err != nil {
 		panic(err)
 	}
 	log.Printf("Currency Pair: %+v\n", currencyPair)
-	job.CurrencyPair = currencyPair
+	sj.CurrencyPair = currencyPair
+	sj.State = [3]bool{}
+	sj.Stoped = false
 }
 
-func (job *SpotJob) Start(ctx context.Context) {
-	job.init(ctx)
-	job.subscribe()
-	go job.beat(ctx, job.Socket)
-	go job.listen(ctx, job.Socket)
+func (sj *SpotJob) Start() {
+	sj.init()
+	sj.subscribe()
+	List = append(List, sj)
+	log.Printf("[ %s ] job started", sj.CurrencyPair.Base)
 
-	log.Printf("[ %s ] job prepared", job.CurrencyPair.Base)
-	time.Sleep(time.Second * time.Duration(rand.Intn(120)))
-	go job.refresh(ctx)
-	go job.refreshOrderBook(ctx)
+	go sj.beat(sj.socket)
+	go sj.listen(sj.socket)
+
+	time.Sleep(time.Second * time.Duration(rand.Intn(90)))
+	go sj.refresh()
 }
 
-func (job *SpotJob) getCurrencyAccount(ctx context.Context, currency string) gateapi.SpotAccount {
+func (sj *SpotJob) Stop() {
+	sj.Stoped = true
+	sj.State = [3]bool{}
+	sj.ctx.Done()
+	sj.unsubscribe()
+	sj.socket.Close()
+}
+
+func (sj *SpotJob) getCurrencyAccount(currency string) gateapi.SpotAccount {
 	globalMux.Lock()
 	defer globalMux.Unlock()
 
-	accounts, _, err := job.Client.SpotApi.ListSpotAccounts(ctx, &gateapi.ListSpotAccountsOpts{
+	accounts, _, err := sj.client.SpotApi.ListSpotAccounts(sj.ctx, &gateapi.ListSpotAccountsOpts{
 		Currency: optional.NewString(currency),
 	})
 	if err != nil {
+		sj.State[2] = false
 		log.Printf("job start list spot account err: %v", err)
 		return gateapi.SpotAccount{}
 	}
+	sj.State[2] = true
 	if len(accounts) == 0 {
 		return gateapi.SpotAccount{}
 	}
@@ -108,78 +125,87 @@ func (job *SpotJob) getCurrencyAccount(ctx context.Context, currency string) gat
 	return account
 }
 
-func (job *SpotJob) refresh(ctx context.Context) {
+func (sj *SpotJob) refresh() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			job.refreshOrders(ctx)
-		case <-ctx.Done():
+			go sj.refreshOrders()
+			go sj.refreshOrderBook()
+		case <-sj.ctx.Done():
 			return
 		}
 	}
 }
 
-func (job *SpotJob) refreshOrderBook(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			account := job.getCurrencyAccount(ctx, job.CurrencyPair.Quote)
-			askPrice, _, bidPrice, _, err := job.lookupMarketPrice(ctx)
-			if err != nil {
-				continue
-			}
-			orders := job.currentOrders(ctx, "")
-			fmt.Printf("\n\n")
-			log.Printf("%s\n", strings.Repeat("*", 185))
-			log.Printf("%s [Currency: %-20s            Available: %-20s] %s\n", strings.Repeat("*", 54), account.Currency, account.Available, strings.Repeat("*", 54))
-			log.Printf("%s %-10s - Ask :::::::::::::::::: - Market - :::::::::::::::::: Bid - %10s %s\n", strings.Repeat("*", 51), askPrice, bidPrice, strings.Repeat("*", 51))
-			log.Printf("%s\n", strings.Repeat("*", 185))
-			log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", "CURRENCY", "ID", "TEXT", "SIDE", "PRICE", "AMOUNT", "LEFT", "TIME")
-			log.Printf("%s\n", strings.Repeat("*", 184))
-			for i, order := range orders {
-				log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", job.CurrencyPair.Base, order.Id, order.Text, order.Side, order.Price, order.Amount, order.Left, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
-				if i < len(orders)-1 {
-					log.Printf("*%s*\n", strings.Repeat("-", 183))
-				}
-			}
-			log.Printf("%s\n", strings.Repeat("*", 185))
-			fmt.Printf("\n\n")
-		case <-ctx.Done():
-			return
+func (sj *SpotJob) refreshOrderBook() {
+	account := sj.getCurrencyAccount(sj.CurrencyPair.Quote)
+	askPrice, _, bidPrice, _, err := sj.lookupMarketPrice()
+	if err != nil {
+		sj.State[2] = false
+		return
+	}
+	sj.State[2] = true
+	orders := sj.currentOrders("")
+	fmt.Printf("\n\n")
+	log.Printf("%s\n", strings.Repeat("*", 185))
+	log.Printf("%s [Currency: %-20s            Available: %-20s] %s\n", strings.Repeat("*", 54), account.Currency, account.Available, strings.Repeat("*", 54))
+	log.Printf("%s %-10s - Ask :::::::::::::::::: - Market - :::::::::::::::::: Bid - %10s %s\n", strings.Repeat("*", 51), askPrice, bidPrice, strings.Repeat("*", 51))
+	log.Printf("%s\n", strings.Repeat("*", 185))
+	log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", "CURRENCY", "ID", "TEXT", "SIDE", "PRICE", "AMOUNT", "LEFT", "TIME")
+	log.Printf("%s\n", strings.Repeat("*", 185))
+	for i, order := range orders {
+		log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", sj.CurrencyPair.Base, order.Id, order.Text, order.Side, order.Price, order.Amount, order.Left, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
+		if i < len(orders)-1 {
+			log.Printf("*%s*\n", strings.Repeat("-", 183))
 		}
 	}
+	log.Printf("%s\n", strings.Repeat("*", 185))
+	fmt.Printf("\n\n")
 }
 
-func (job *SpotJob) listen(ctx context.Context, ws *websocket.Conn) {
+func (sj *SpotJob) listen(ws *websocket.Conn) {
 	for {
+		if sj.Stoped {
+			return
+		}
 		_, message, err := ws.ReadMessage()
 		if err != nil {
-			ws.Close()
-			panic(err)
+			sj.State[1] = false
+			log.Printf("job [%s] read socket message err: %v\n", sj.CurrencyPair.Base, err)
+			continue
 		}
 		gateMessage := channel.GateMessage{}
 		if err := json.Unmarshal([]byte(message), &gateMessage); err != nil {
-			log.Printf("unmarshal gate message err: %v", err)
+			sj.State[1] = false
+			log.Printf("job [%s], unmarshal gate message: %s err: %v\n", sj.CurrencyPair.Base, message, err)
 			continue
 		}
-		job.HandleMessage(ctx, &gateMessage)
+		sj.State[1] = true
+		sj.HandleMessage(&gateMessage)
 	}
 }
 
-func (job *SpotJob) subscribe() {
+func (sj *SpotJob) subscribe() {
 	t := time.Now().Unix()
-	ordersMsg := channel.NewMsg("spot.orders", "subscribe", t, []string{job.CurrencyPair.Id})
-	ordersMsg.Sign(job.Key, job.Secret)
-	if err := ordersMsg.Send(job.Socket); err != nil {
+	ordersMsg := channel.NewMsg("spot.orders", "subscribe", t, []string{sj.CurrencyPair.Id})
+	ordersMsg.Sign(sj.Key, sj.Secret)
+	if err := ordersMsg.Send(sj.socket); err != nil {
 		panic(err)
 	}
 }
 
-func (job *SpotJob) beat(ctx context.Context, ws *websocket.Conn) {
+func (sj *SpotJob) unsubscribe() {
+	t := time.Now().Unix()
+	ordersMsg := channel.NewMsg("spot.orders", "unsubscribe", t, []string{sj.CurrencyPair.Id})
+	ordersMsg.Sign(sj.Key, sj.Secret)
+	if err := ordersMsg.Send(sj.socket); err != nil {
+		panic(err)
+	}
+}
+
+func (sj *SpotJob) beat(ws *websocket.Conn) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -188,22 +214,27 @@ func (job *SpotJob) beat(ctx context.Context, ws *websocket.Conn) {
 			t := time.Now().Unix()
 			pingMsg := channel.NewMsg(channel.SpotChannelPing, "", t, []string{})
 			if err := pingMsg.Send(ws); err != nil {
-				log.Printf("job beat with ping err %v\n", err)
+				sj.State[0] = false
+				log.Printf("job [%s] ping err %v\n", sj.CurrencyPair.Base, err)
+				continue
 			}
-		case <-ctx.Done():
+			sj.State[0] = true
+		case <-sj.ctx.Done():
 			return
 		}
 	}
 }
 
-func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, decimal.Decimal, decimal.Decimal, decimal.Decimal, error) {
-	orderBook, _, err := job.Client.SpotApi.ListOrderBook(ctx, job.CurrencyPair.Id, &gateapi.ListOrderBookOpts{
-		Limit: optional.NewInt32(int32(job.OrderNum)),
+func (sj *SpotJob) lookupMarketPrice() (decimal.Decimal, decimal.Decimal, decimal.Decimal, decimal.Decimal, error) {
+	orderBook, _, err := sj.client.SpotApi.ListOrderBook(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListOrderBookOpts{
+		Limit: optional.NewInt32(int32(sj.OrderNum)),
 	})
 	if err != nil {
+		sj.State[2] = false
 		log.Printf("lookupMarketPrice err: %v\n", err)
 		return decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, err
 	}
+	sj.State[2] = true
 	askPrice, _ := decimal.NewFromString(orderBook.Asks[0][0])
 	askAmount, _ := decimal.NewFromString(orderBook.Asks[0][1])
 	bidPrice, _ := decimal.NewFromString(orderBook.Bids[0][0])
@@ -211,26 +242,26 @@ func (job *SpotJob) lookupMarketPrice(ctx context.Context) (decimal.Decimal, dec
 	return askPrice, askAmount, bidPrice, bidAmount, nil
 }
 
-func (job *SpotJob) HandleMessage(ctx context.Context, message *channel.GateMessage) {
+func (sj *SpotJob) HandleMessage(message *channel.GateMessage) {
 	switch message.Event {
 	case channel.SpotChannelEventSubscribe:
-		job.handleSubscribeEvent(ctx, message.ParseResult())
+		sj.handleSubscribeEvent(message.ParseResult())
 	case channel.SpotChannelEventUnsubscribe:
-		job.handleUnscribeEvent(ctx, message.ParseResult())
+		sj.handleUnscribeEvent(message.ParseResult())
 	case channel.SpotChannelEventUpdate:
-		job.handleUpdateEvent(ctx, message.ParseResult())
+		sj.handleUpdateEvent(message.ParseResult())
 	}
 }
 
-func (job *SpotJob) handleSubscribeEvent(ctx context.Context, result string) {
+func (job *SpotJob) handleSubscribeEvent(result string) {
 
 }
 
-func (job *SpotJob) handleUnscribeEvent(ctx context.Context, result string) {
+func (job *SpotJob) handleUnscribeEvent(result string) {
 
 }
 
-func (job *SpotJob) handleUpdateEvent(ctx context.Context, result string) {
+func (sj *SpotJob) handleUpdateEvent(result string) {
 	orderResult := make(channel.OrderResult, 0)
 	err := json.Unmarshal([]byte(result), &orderResult)
 	if err != nil {
@@ -238,54 +269,57 @@ func (job *SpotJob) handleUpdateEvent(ctx context.Context, result string) {
 		return
 	}
 	for _, order := range orderResult {
-		if order.CurrencyPair != job.CurrencyPair.Id {
+		if order.CurrencyPair != sj.CurrencyPair.Id {
 			return
 		}
 		switch order.Event {
 		case channel.SpotChannelOrdersEventPut:
-			job.handleOrderPutEvent(ctx, &order)
+			sj.handleOrderPutEvent(&order)
 		case channel.SpotChannelEventUpdate:
-			job.handleOrderUpdateEvent(ctx, &order)
+			sj.handleOrderUpdateEvent(&order)
 		case channel.SpotChannelOrdersEventFinish:
-			job.handleOrderFinishEvent(ctx, &order)
+			sj.handleOrderFinishEvent(&order)
 		}
 	}
 }
 
-func (job *SpotJob) handleOrderUpdateEvent(ctx context.Context, order *channel.Order) {
-	log.Printf("order [%s]-[%s]-[%s] was updated: [price: %s, amount: %s/%s, fee: %s/%s]\n", order.Text, order.Side, job.CurrencyPair.Base, order.Price, order.Amount.Sub(order.Left), order.Amount, order.Fee, order.FeeCurrency)
+func (sj *SpotJob) handleOrderUpdateEvent(order *channel.Order) {
+	log.Printf("order [%s]-[%s]-[%s] was updated: [price: %s, amount: %s/%s, fee: %s/%s]\n", order.Text, order.Side, sj.CurrencyPair.Base, order.Price, order.Amount.Sub(order.Left), order.Amount, order.Fee, order.FeeCurrency)
 }
 
-func (job *SpotJob) currentOrders(ctx context.Context, side string) []gateapi.Order {
-	openOrders, _, err := job.Client.SpotApi.ListOrders(ctx, job.CurrencyPair.Id, channel.SpotChannelOrdersStatusOpen, &gateapi.ListOrdersOpts{
-		Limit: optional.NewInt32(int32(job.OrderNum)),
+func (sj *SpotJob) currentOrders(side string) []gateapi.Order {
+	openOrders, _, err := sj.client.SpotApi.ListOrders(sj.ctx, sj.CurrencyPair.Id, channel.SpotChannelOrdersStatusOpen, &gateapi.ListOrdersOpts{
+		Limit: optional.NewInt32(int32(sj.OrderNum)),
 		Side:  optional.NewString(side),
 	})
 	if err != nil {
-		log.Printf("handlePutEvent job.Client.SpotApi.ListOrders err: %v\n", err)
+		sj.State[2] = false
+		log.Printf("handlePutEvent sj.client.SpotApi.ListOrders err: %v\n", err)
 		return make([]gateapi.Order, 0)
 	}
+	sj.State[2] = true
 	return openOrders
 }
 
-func (job *SpotJob) handleOrderPutEvent(ctx context.Context, order *channel.Order) {
-	log.Printf("A new order [%s]-[%s]-[%s] was put, [price: %s, amount: %s]\n", order.Text, job.CurrencyPair.Base, order.Side, order.Price, order.Amount)
-	job.refreshOrders(ctx)
+func (sj *SpotJob) handleOrderPutEvent(order *channel.Order) {
+	log.Printf("A new order [%s]-[%s]-[%s] was put, [price: %s, amount: %s]\n", order.Text, sj.CurrencyPair.Base, order.Side, order.Price, order.Amount)
+	sj.refreshOrders()
 }
 
-func (job *SpotJob) refreshOrders(ctx context.Context) {
+func (sj *SpotJob) refreshOrders() {
 	time.Sleep(8 * time.Second)
-	job.mux.Lock()
-	defer job.mux.Unlock()
+	sj.mux.Lock()
+	defer sj.mux.Unlock()
 
-	askPrice, _, bidPrice, _, err := job.lookupMarketPrice(ctx)
+	askPrice, _, bidPrice, _, err := sj.lookupMarketPrice()
 	if err != nil {
+		sj.State[2] = false
 		return
 	}
-	nextOrderPrice := decimal.Avg(askPrice, bidPrice).Mul(decimal.NewFromInt(1).Sub(job.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(job.CurrencyPair.Precision)
+	nextOrderPrice := decimal.Avg(askPrice, bidPrice).Mul(decimal.NewFromInt(1).Sub(sj.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(sj.CurrencyPair.Precision)
 
 	// choose a better oder price
-	buyOrders := job.currentOrders(ctx, channel.SpotChannelOrderSideBuy)
+	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
 	if len(buyOrders) >= 10 {
 		return
 	}
@@ -297,41 +331,43 @@ func (job *SpotJob) refreshOrders(ctx context.Context) {
 			return left.GreaterThan(right)
 		})
 		topOrderPrice, _ := decimal.NewFromString(buyOrders[0].Price)
-		topOrderPrice = topOrderPrice.Mul(decimal.NewFromFloat(1).Add(job.Gap)).RoundFloor(job.CurrencyPair.Precision)
+		topOrderPrice = topOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap)).RoundFloor(sj.CurrencyPair.Precision)
 		if topOrderPrice.LessThanOrEqual(nextOrderPrice) {
 			bottomOrderPrice, _ := decimal.NewFromString(buyOrders[len(buyOrders)-1].Price)
-			nextOrderPrice = bottomOrderPrice.Mul(decimal.NewFromInt(1).Sub(job.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(job.CurrencyPair.Precision)
+			nextOrderPrice = bottomOrderPrice.Mul(decimal.NewFromInt(1).Sub(sj.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(sj.CurrencyPair.Precision)
 		}
 	}
 
-	nextOrderAmount := job.OrderAmount.Div(nextOrderPrice).RoundFloor(job.CurrencyPair.AmountPrecision)
-	minBaseAmount, _ := decimal.NewFromString(job.CurrencyPair.MinBaseAmount)
-	minQuoteAmount, _ := decimal.NewFromString(job.CurrencyPair.MinQuoteAmount)
-	if nextOrderAmount.LessThan(minBaseAmount) || job.OrderAmount.LessThan(minQuoteAmount) {
+	nextOrderAmount := sj.OrderAmount.Div(nextOrderPrice).RoundFloor(sj.CurrencyPair.AmountPrecision)
+	minBaseAmount, _ := decimal.NewFromString(sj.CurrencyPair.MinBaseAmount)
+	minQuoteAmount, _ := decimal.NewFromString(sj.CurrencyPair.MinQuoteAmount)
+	if nextOrderAmount.LessThan(minBaseAmount) || sj.OrderAmount.LessThan(minQuoteAmount) {
 		return
 	}
 
-	quoteAcct := job.getCurrencyAccount(ctx, job.CurrencyPair.Quote)
+	quoteAcct := sj.getCurrencyAccount(sj.CurrencyPair.Quote)
 	quoteAvailable, _ := decimal.NewFromString(quoteAcct.Available)
-	nextOrderTotalAmount := nextOrderPrice.Mul(nextOrderAmount).Round(job.CurrencyPair.Precision)
+	nextOrderTotalAmount := nextOrderPrice.Mul(nextOrderAmount).Round(sj.CurrencyPair.Precision)
 	if quoteAvailable.LessThan(nextOrderTotalAmount) {
 		return
 	}
 
-	if _, _, err := job.Client.SpotApi.CreateOrder(ctx, gateapi.Order{
+	if _, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
 		Account:      "spot",
-		Text:         fmt.Sprintf("t-%s", util.RandomID(job.OrderNum)),
-		CurrencyPair: job.CurrencyPair.Id,
+		Text:         fmt.Sprintf("t-%s", util.RandomID(sj.OrderNum)),
+		CurrencyPair: sj.CurrencyPair.Id,
 		Side:         channel.SpotChannelOrderSideBuy,
 		Price:        nextOrderPrice.String(),
 		Amount:       nextOrderAmount.String(),
 	}); err != nil {
-		log.Printf("[ %s ] refreshOrders err: %+v\n", job.CurrencyPair.Base, err)
+		sj.State[2] = false
+		log.Printf("[ %s ] refreshOrders err: %+v\n", sj.CurrencyPair.Base, err)
 		return
 	}
+	sj.State[2] = true
 }
 
-func (job *SpotJob) handleOrderFinishEvent(ctx context.Context, order *channel.Order) {
+func (sj *SpotJob) handleOrderFinishEvent(order *channel.Order) {
 	if order.Left.GreaterThan(decimal.Zero) {
 		log.Printf("Order [%s] was cancelled, [price: %s, amount: %s/%s]\n", order.Text, order.Price, order.Left, order.Amount)
 		return
@@ -339,35 +375,35 @@ func (job *SpotJob) handleOrderFinishEvent(ctx context.Context, order *channel.O
 	log.Printf("Order [%s] was closed, [price: %s, amount: %s, fee: %s/%s]\n", order.Text, order.Price, order.Amount, order.Fee, order.FeeCurrency)
 	switch order.Side {
 	case channel.SpotChannelOrderSideBuy:
-		job.OnOrderBuyed(ctx, order)
+		sj.OnOrderBuyed(order)
 	case channel.SpotChannelOrderSideSell:
-		job.OnOrderSelled(ctx, order)
+		sj.OnOrderSelled(order)
 	}
 }
 
-func (job *SpotJob) OnOrderBuyed(ctx context.Context, order *channel.Order) {
-	log.Printf("Deal %v - [%s] [price: %v, amount: %v, left: %v]----[fee: %v, left: %v]\n", job.CurrencyPair.Base, order.Side, order.Price, order.Amount, order.Left, order.Fee.Mul(order.Price).RoundFloor(job.CurrencyPair.Precision), order.Amount.Sub(order.Fee).Round(job.CurrencyPair.AmountPrecision))
+func (sj *SpotJob) OnOrderBuyed(order *channel.Order) {
+	log.Printf("Deal %v - [%s] [price: %v, amount: %v, left: %v]----[fee: %v, left: %v]\n", sj.CurrencyPair.Base, order.Side, order.Price, order.Amount, order.Left, order.Fee.Mul(order.Price).RoundFloor(sj.CurrencyPair.Precision), order.Amount.Sub(order.Fee).Round(sj.CurrencyPair.AmountPrecision))
 	sellPrice := order.Price.
 		Mul(decimal.NewFromInt(1).
-			Add(job.Gap).
+			Add(sj.Gap).
 			Add(order.Fee.Add(order.PointFee).Add(order.GtFee).Add(order.RebatedFee).Div(order.Amount).Mul(decimal.NewFromInt(2)))).
-		Round(job.CurrencyPair.Precision)
-	_, _, err := job.Client.SpotApi.CreateOrder(ctx, gateapi.Order{
+		Round(sj.CurrencyPair.Precision)
+	_, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
 		Account:      "spot",
 		Text:         fmt.Sprintf("t-%s", order.Id),
-		CurrencyPair: job.CurrencyPair.Id,
+		CurrencyPair: sj.CurrencyPair.Id,
 		Side:         channel.SpotChannelOrderSideSell,
 		Price:        sellPrice.String(),
 		Amount:       order.Amount.Sub(order.Fee).String(),
 	})
 	if err != nil {
-		log.Printf("OnOrderBuyed job.Client.SpotApi.CreateOrder err:%v\n", err)
+		log.Printf("OnOrderBuyed sj.client.SpotApi.CreateOrder err:%v\n", err)
 		return
 	}
 }
 
-func (job *SpotJob) OnOrderSelled(ctx context.Context, order *channel.Order) {
-	buyOrder, _, err := job.Client.SpotApi.GetOrder(ctx, order.Text[2:], job.CurrencyPair.Id, nil)
+func (sj *SpotJob) OnOrderSelled(order *channel.Order) {
+	buyOrder, _, err := sj.client.SpotApi.GetOrder(sj.ctx, order.Text[2:], sj.CurrencyPair.Id, nil)
 	if err != nil {
 		log.Printf("OnOrderSelled get buy order err: %v\n", err)
 		return
@@ -377,6 +413,6 @@ func (job *SpotJob) OnOrderSelled(ctx context.Context, order *channel.Order) {
 	buyOrderFee, _ := decimal.NewFromString(buyOrder.Fee)
 	totalFee := buyOrderFee.Mul(buyOrderPrice).Add(order.Fee)
 	profit := order.Price.Mul(order.Amount).Sub(buyOrderPrice.Mul(buyOrderAmount)).Sub(order.Fee)
-	log.Printf("Deal %v - [%s] [buy_price: %v, amount: %v, fee: %v]----[sell_price: %v, amount: %v, fee: %v]----[fee: %v, profit: %v]\n", job.CurrencyPair.Base, order.Side, buyOrder.Price, buyOrder.Amount, buyOrderPrice.Mul(buyOrderFee), order.Price, order.Amount, order.Fee, totalFee, profit)
-	job.refreshOrders(ctx)
+	log.Printf("Deal %v - [%s] [buy_price: %v, amount: %v, fee: %v]----[sell_price: %v, amount: %v, fee: %v]----[fee: %v, profit: %v]\n", sj.CurrencyPair.Base, order.Side, buyOrder.Price, buyOrder.Amount, buyOrderPrice.Mul(buyOrderFee), order.Price, order.Amount, order.Fee, totalFee, profit)
+	sj.refreshOrders()
 }
