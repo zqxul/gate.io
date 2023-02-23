@@ -23,13 +23,15 @@ func init() {
 	jobGroup.GET("/list", HandleListJobs)
 	jobGroup.GET("/:id", HandleGetJob)
 	jobGroup.POST("/:id", HandleEditJob)
-	jobGroup.DELETE("':id")
+	jobGroup.POST("/:id/stop", HandleStopJob)
+	jobGroup.POST("/:id/resume", HandleResumeJob)
+	jobGroup.DELETE("':id", HandleDeleteJob)
 }
 
 func HandleListJobs(c *gin.Context) {
-	jobInfos := make([]JobInfo, 0)
-	for _, job := range job.List {
-		jobInfos = append(jobInfos, JobInfo{
+	results := make([]JobInfo, 0)
+	for _, job := range job.List() {
+		results = append(results, JobInfo{
 			CurrencyPair: job.CurrencyPair,
 			Gap:          job.Gap,
 			OrderAmount:  job.OrderAmount,
@@ -37,16 +39,14 @@ func HandleListJobs(c *gin.Context) {
 			Fund:         job.Fund,
 		})
 	}
-	c.JSON(http.StatusOK, jobInfos)
+	c.JSON(http.StatusOK, results)
 }
 
 func HandleGetJob(c *gin.Context) {
 	ID := c.Param("id")
-	for _, job := range job.List {
-		if job.CurrencyPair.Id == ID {
-			c.JSON(http.StatusOK, job)
-			return
-		}
+	if result := job.GetJob(ID); result != nil {
+		c.JSON(http.StatusOK, result)
+		return
 	}
 	c.JSON(http.StatusNotFound, nil)
 }
@@ -58,34 +58,36 @@ func HandleEditJob(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, nil)
 		return
 	}
-	for i, item := range job.List {
-		if item.CurrencyPair.Id == ID {
-			job.List[i].Gap = jobInfo.Gap
-			job.List[i].OrderAmount = jobInfo.OrderAmount
-			job.List[i].OrderNum = jobInfo.OrderNum
-			job.List[i].Fund = jobInfo.Fund
-			c.JSON(http.StatusOK, item)
-		}
+	if exist := job.EditJob(ID, jobInfo.Gap, jobInfo.OrderAmount, jobInfo.Fund, jobInfo.OrderNum); exist {
+		c.JSON(http.StatusOK, nil)
+		return
 	}
 	c.JSON(http.StatusNotFound, nil)
 }
 
 func HandleStopJob(c *gin.Context) {
 	ID := c.Param("id")
-	for i, item := range job.List {
-		if item.CurrencyPair.Id == ID {
-			job.List[i].Stop()
-			c.JSON(http.StatusOK, nil)
-			return
-		}
+	if exist := job.StopJob(ID); exist {
+		c.JSON(http.StatusOK, nil)
+		return
 	}
 	c.JSON(http.StatusNotFound, nil)
 }
 
 func HandleResumeJob(c *gin.Context) {
-
+	ID := c.Param("id")
+	if exist := job.ResumeJob(ID); exist {
+		c.JSON(http.StatusOK, nil)
+		return
+	}
+	c.JSON(http.StatusNotFound, nil)
 }
 
 func HandleDeleteJob(c *gin.Context) {
-
+	ID := c.Param("id")
+	if exist := job.RemoveJob(ID); exist {
+		c.JSON(http.StatusOK, nil)
+		return
+	}
+	c.JSON(http.StatusNotFound, nil)
 }

@@ -22,7 +22,7 @@ import (
 )
 
 var globalMux sync.Mutex
-var List []*SpotJob = make([]*SpotJob, 0)
+var list []*SpotJob = make([]*SpotJob, 0)
 
 type SpotJob struct {
 	client       *gateapi.APIClient
@@ -38,6 +38,62 @@ type SpotJob struct {
 	State        [3]bool // [beat,socket,api]
 	Stoped       bool
 	ctx          context.Context
+}
+
+func List() []*SpotJob {
+	return list
+}
+
+func EditJob(ID string, gap, orderAmount, fund decimal.Decimal, orderNum int) (exist bool) {
+	item := GetJob(ID)
+	if item == nil {
+		return
+	}
+	item.Gap = gap
+	item.OrderAmount = orderAmount
+	item.OrderNum = orderNum
+	item.Fund = fund
+	return true
+}
+
+func RemoveJob(ID string) (exist bool) {
+	newJobs := make([]*SpotJob, 0)
+	for _, item := range list {
+		if item.CurrencyPair.Id != ID {
+			newJobs = append(newJobs, item)
+		} else {
+			exist = true
+		}
+	}
+	list = newJobs
+	return
+}
+
+func GetJob(ID string) *SpotJob {
+	for _, item := range list {
+		if item.CurrencyPair.Id == ID {
+			return item
+		}
+	}
+	return nil
+}
+
+func StopJob(ID string) (exist bool) {
+	item := GetJob(ID)
+	if item != nil {
+		item.Stop()
+		return true
+	}
+	return
+}
+
+func ResumeJob(ID string) (exist bool) {
+	item := GetJob(ID)
+	if item != nil {
+		item.Start()
+		return true
+	}
+	return
 }
 
 func getApiClient(key, secret string) *gateapi.APIClient {
@@ -68,6 +124,7 @@ func NewSpotJob(currencyPairId string, fund float64, gap float64, key string, se
 		CurrencyPair: gateapi.CurrencyPair{Id: currencyPairId},
 		ctx:          context.TODO(),
 	}
+	list = append(list, job)
 	return job
 }
 
@@ -87,7 +144,6 @@ func (sj *SpotJob) init() {
 func (sj *SpotJob) Start() {
 	sj.init()
 	sj.subscribe()
-	List = append(List, sj)
 	log.Printf("[ %s ] job started", sj.CurrencyPair.Base)
 
 	go sj.beat(sj.socket)
