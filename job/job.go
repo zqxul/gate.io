@@ -118,6 +118,7 @@ func NewSpotJob(currencyPairId string, fund float64, gap float64, key string, se
 	job := &SpotJob{
 		Gap:          decimal.NewFromFloat(gap),
 		OrderNum:     10,
+		Fund:         decimal.NewFromFloat(fund),
 		OrderAmount:  decimal.NewFromFloat(fund).Div(decimal.NewFromInt(10)).RoundFloor(0),
 		Key:          key,
 		Secret:       secret,
