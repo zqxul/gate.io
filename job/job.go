@@ -44,8 +44,8 @@ func List() []*SpotJob {
 	return list
 }
 
-func EditJob(ID string, gap, orderAmount, fund decimal.Decimal, orderNum int) (exist bool) {
-	item := GetJob(ID)
+func Edit(ID string, gap, orderAmount, fund decimal.Decimal, orderNum int) (exist bool) {
+	item := Get(ID)
 	if item == nil {
 		return
 	}
@@ -56,7 +56,7 @@ func EditJob(ID string, gap, orderAmount, fund decimal.Decimal, orderNum int) (e
 	return true
 }
 
-func RemoveJob(ID string) (exist bool) {
+func Remove(ID string) (exist bool) {
 	newJobs := make([]*SpotJob, 0)
 	for _, item := range list {
 		if item.CurrencyPair.Id != ID {
@@ -69,7 +69,7 @@ func RemoveJob(ID string) (exist bool) {
 	return
 }
 
-func GetJob(ID string) *SpotJob {
+func Get(ID string) *SpotJob {
 	for _, item := range list {
 		if item.CurrencyPair.Id == ID {
 			return item
@@ -78,8 +78,8 @@ func GetJob(ID string) *SpotJob {
 	return nil
 }
 
-func StopJob(ID string) (exist bool) {
-	item := GetJob(ID)
+func Stop(ID string) (exist bool) {
+	item := Get(ID)
 	if item != nil {
 		item.Stop()
 		return true
@@ -88,7 +88,7 @@ func StopJob(ID string) (exist bool) {
 }
 
 func ResumeJob(ID string) (exist bool) {
-	item := GetJob(ID)
+	item := Get(ID)
 	if item != nil {
 		item.Start()
 		return true
@@ -114,12 +114,16 @@ func getSocket() *websocket.Conn {
 	return socket
 }
 
-func NewSpotJob(currencyPairId string, fund float64, gap float64, key string, secret string) *SpotJob {
-	job := &SpotJob{
-		Gap:          decimal.NewFromFloat(gap),
+func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret string) *SpotJob {
+	var job *SpotJob = Get(currencyPairId)
+	if job != nil {
+		return job
+	}
+	job = &SpotJob{
+		Gap:          gap,
 		OrderNum:     10,
-		Fund:         decimal.NewFromFloat(fund),
-		OrderAmount:  decimal.NewFromFloat(fund).Div(decimal.NewFromInt(10)).RoundFloor(0),
+		Fund:         fund,
+		OrderAmount:  fund.Div(decimal.NewFromInt(10)).RoundFloor(0),
 		Key:          key,
 		Secret:       secret,
 		CurrencyPair: gateapi.CurrencyPair{Id: currencyPairId},
