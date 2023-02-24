@@ -2,14 +2,15 @@ package api
 
 import "github.com/gin-gonic/gin"
 
-var R *gin.Engine = gin.Default()
+var e *gin.Engine = gin.Default()
+var R gin.RouterGroup = *e.Group("/gateio")
 
 func init() {
 	R.GET("/ping", HandlePing)
 }
 
 func Run() {
-	R.Run(":8888")
+	e.Run(":8888")
 }
 
 func HandlePing(c *gin.Context) {
