@@ -51,7 +51,7 @@ func HandleListJobs(c *gin.Context) {
 func HandleNewJob(c *gin.Context) {
 	jobInfo := JobInfo{}
 	if err := c.ShouldBindJSON(&jobInfo); err != nil {
-		c.JSON(http.StatusBadRequest, nil)
+		c.JSON(http.StatusBadRequest, api.Empty)
 		return
 	}
 	result := job.New(jobInfo.CurrencyPair.Id, jobInfo.Fund, jobInfo.Gap, channel.SecondKey, channel.SecondSecret)
@@ -79,11 +79,15 @@ func HandleEditJob(c *gin.Context) {
 	ID := c.Param("id")
 	jobInfo := JobInfo{}
 	if err := c.ShouldBindJSON(&jobInfo); err != nil {
-		c.JSON(http.StatusBadRequest, nil)
+		c.JSON(http.StatusBadRequest, api.Empty)
+		return
+	}
+	if jobInfo.Gap.LessThanOrEqual(decimal.NewFromFloat(0.0001)) {
+		c.JSON(http.StatusBadRequest, api.Err{Err: "invalid gap value"})
 		return
 	}
 	if exist := job.Edit(ID, jobInfo.Gap, jobInfo.OrderAmount, jobInfo.Fund, jobInfo.OrderNum); exist {
-		c.JSON(http.StatusOK, nil)
+		c.JSON(http.StatusOK, api.Empty)
 		return
 	}
 	c.JSON(http.StatusNotFound, api.Empty)
@@ -95,7 +99,7 @@ func HandleStopJob(c *gin.Context) {
 		c.JSON(http.StatusOK, api.Empty)
 		return
 	}
-	c.JSON(http.StatusNotFound, nil)
+	c.JSON(http.StatusNotFound, api.Empty)
 }
 
 func HandleResumeJob(c *gin.Context) {
