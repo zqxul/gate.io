@@ -8,7 +8,7 @@ var R gin.RouterGroup = *e.Group("/gateio")
 var Empty = make(map[string]interface{}, 0)
 
 type Err struct {
-	Err string `json:"err"`
+	Err error `json:"error"`
 }
 
 func init() {

@@ -1,6 +1,7 @@
 package job
 
 import (
+	"fmt"
 	"net/http"
 
 	"gate.io/api"
@@ -19,6 +20,13 @@ type JobInfo struct {
 	Fund         decimal.Decimal      `json:"fund"`
 	State        [3]bool              `json:"state"`
 	Stoped       bool                 `json:"stoped"`
+}
+
+func (ji *JobInfo) Validate() error {
+	if ji.Gap.LessThanOrEqual(decimal.NewFromFloat(0.0001)) {
+		return fmt.Errorf("invalid gap value")
+	}
+	return nil
 }
 
 func init() {
@@ -54,6 +62,10 @@ func HandleNewJob(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, api.Empty)
 		return
 	}
+	if err := jobInfo.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
 	result := job.New(jobInfo.CurrencyPair.Id, jobInfo.Fund, jobInfo.Gap, channel.SecondKey, channel.SecondSecret)
 	c.JSON(http.StatusOK, result)
 }
@@ -82,8 +94,8 @@ func HandleEditJob(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, api.Empty)
 		return
 	}
-	if jobInfo.Gap.LessThanOrEqual(decimal.NewFromFloat(0.0001)) {
-		c.JSON(http.StatusBadRequest, api.Err{Err: "invalid gap value"})
+	if err := jobInfo.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 	if exist := job.Edit(ID, jobInfo.Gap, jobInfo.OrderAmount, jobInfo.Fund, jobInfo.OrderNum); exist {
