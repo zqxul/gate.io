@@ -5,6 +5,8 @@ import "github.com/gin-gonic/gin"
 var e *gin.Engine = gin.Default()
 var R gin.RouterGroup = *e.Group("/gateio")
 
+var Empty = make(map[string]interface{}, 0)
+
 func init() {
 	R.GET("/ping", HandlePing)
 }

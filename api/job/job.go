@@ -72,7 +72,7 @@ func HandleGetJob(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusNotFound, nil)
+	c.JSON(http.StatusNotFound, api.Empty)
 }
 
 func HandleEditJob(c *gin.Context) {
@@ -86,13 +86,13 @@ func HandleEditJob(c *gin.Context) {
 		c.JSON(http.StatusOK, nil)
 		return
 	}
-	c.JSON(http.StatusNotFound, nil)
+	c.JSON(http.StatusNotFound, api.Empty)
 }
 
 func HandleStopJob(c *gin.Context) {
 	ID := c.Param("id")
 	if exist := job.Stop(ID); exist {
-		c.JSON(http.StatusOK, nil)
+		c.JSON(http.StatusOK, api.Empty)
 		return
 	}
 	c.JSON(http.StatusNotFound, nil)
@@ -101,17 +101,17 @@ func HandleStopJob(c *gin.Context) {
 func HandleResumeJob(c *gin.Context) {
 	ID := c.Param("id")
 	if exist := job.ResumeJob(ID); exist {
-		c.JSON(http.StatusOK, nil)
+		c.JSON(http.StatusOK, api.Empty)
 		return
 	}
-	c.JSON(http.StatusNotFound, nil)
+	c.JSON(http.StatusNotFound, api.Empty)
 }
 
 func HandleDeleteJob(c *gin.Context) {
 	ID := c.Param("id")
 	if exist := job.Remove(ID); exist {
-		c.JSON(http.StatusOK, nil)
+		c.JSON(http.StatusOK, api.Empty)
 		return
 	}
-	c.JSON(http.StatusNotFound, nil)
+	c.JSON(http.StatusNotFound, api.Empty)
 }
