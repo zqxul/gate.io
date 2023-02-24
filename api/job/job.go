@@ -47,7 +47,14 @@ func HandleListJobs(c *gin.Context) {
 func HandleGetJob(c *gin.Context) {
 	ID := c.Param("id")
 	if result := job.GetJob(ID); result != nil {
-		c.JSON(http.StatusOK, result)
+		c.JSON(http.StatusOK, JobInfo{
+			CurrencyPair: result.CurrencyPair,
+			Gap:          result.Gap,
+			OrderAmount:  result.OrderAmount,
+			OrderNum:     result.OrderNum,
+			Fund:         result.Fund,
+			State:        result.State,
+		})
 		return
 	}
 	c.JSON(http.StatusNotFound, nil)
