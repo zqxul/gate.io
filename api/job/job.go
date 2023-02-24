@@ -16,6 +16,7 @@ type JobInfo struct {
 	OrderAmount  decimal.Decimal      `json:"orderAmount"`
 	OrderNum     int                  `json:"orderNum"`
 	Fund         decimal.Decimal      `json:"fund"`
+	State        [3]bool              `json:"state"`
 }
 
 func init() {
@@ -37,6 +38,7 @@ func HandleListJobs(c *gin.Context) {
 			OrderAmount:  job.OrderAmount,
 			OrderNum:     job.OrderNum,
 			Fund:         job.Fund,
+			State:        job.State,
 		})
 	}
 	c.JSON(http.StatusOK, results)
