@@ -1,6 +1,8 @@
 package main
 
 import (
+	api "gate.io/api"
+	_ "gate.io/api/job"
 	"gate.io/channel"
 	"gate.io/job"
 )
@@ -23,5 +25,7 @@ func main() {
 	go job.NewSpotJob(channel.CurrencyPairCORE_USDT, 50, 0.003, channel.SecondKey, channel.SecondSecret).Start()
 	go job.NewSpotJob(channel.CurrencyPairXRP_USDT, 50, 0.0015, channel.SecondKey, channel.SecondSecret).Start()
 	go job.NewSpotJob(channel.CurrencyPairDOGE_USDT, 50, 0.003, channel.SecondKey, channel.SecondSecret).Start()
+
+	api.Run()
 	select {}
 }

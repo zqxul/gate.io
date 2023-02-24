@@ -6,6 +6,9 @@ var R *gin.Engine = gin.Default()
 
 func init() {
 	R.GET("/ping", HandlePing)
+}
+
+func Run() {
 	R.Run(":8888")
 }
 
