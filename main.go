@@ -21,7 +21,7 @@ func main() {
 	// go job.New(channel.CurrencyPairVGX_USDT, decimal.NewFromFloat(65), decimal.NewFromFloat(0.003), channel.SecondKey, channel.SecondSecret).Start()
 	// go job.New(channel.CurrencyPairBABY_USDT, decimal.NewFromFloat(50), decimal.NewFromFloat(0.003), channel.SecondKey, channel.SecondSecret).Start()
 	// go job.New(channel.CurrencyPairBLUR_USDT, decimal.NewFromFloat(50), decimal.NewFromFloat(0.003), channel.SecondKey, channel.SecondSecret).Start()
-	go job.New(channel.CurrencyPairAVT_USDT, decimal.NewFromFloat(100), decimal.NewFromFloat(0.003), channel.SecondKey, channel.SecondSecret).Start()
+	// go job.New(channel.CurrencyPairAVT_USDT, decimal.NewFromFloat(100), decimal.NewFromFloat(0.003), channel.SecondKey, channel.SecondSecret).Start()
 	// go job.New(channel.CurrencyPairBSW_USDT, decimal.NewFromFloat(50), decimal.NewFromFloat(0.003), channel.SecondKey, channel.SecondSecret).Start()
 	// go job.New(channel.CurrencyPairCORE_USDT, decimal.NewFromFloat(50), decimal.NewFromFloat(0.003), channel.SecondKey, channel.SecondSecret).Start()
 	go job.New(channel.CurrencyPairXRP_USDT, decimal.NewFromFloat(80), decimal.NewFromFloat(0.0015), channel.SecondKey, channel.SecondSecret).Start()
