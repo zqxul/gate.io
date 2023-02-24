@@ -190,14 +190,14 @@ func (sj *SpotJob) getCurrencyAccount(currency string) gateapi.SpotAccount {
 }
 
 func (sj *SpotJob) refresh() {
-	ticker := time.NewTicker(time.Duration(rand.Intn(90)))
+	ticker := time.NewTicker(time.Duration(rand.Intn(90)) * time.Second)
 	defer ticker.Stop()
 	for {
-		if sj.Stoped {
-			return
-		}
 		select {
 		case <-ticker.C:
+			if sj.Stoped {
+				return
+			}
 			go sj.refreshOrders()
 			go sj.refreshOrderBook()
 		case <-sj.ctx.Done():
