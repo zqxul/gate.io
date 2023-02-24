@@ -158,7 +158,6 @@ func (sj *SpotJob) Start() {
 	go sj.beat()
 	go sj.listen()
 
-	time.Sleep(time.Second * time.Duration(rand.Intn(90)))
 	go sj.refresh()
 }
 
@@ -191,7 +190,7 @@ func (sj *SpotJob) getCurrencyAccount(currency string) gateapi.SpotAccount {
 }
 
 func (sj *SpotJob) refresh() {
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(time.Duration(rand.Intn(90)))
 	defer ticker.Stop()
 	for {
 		select {
