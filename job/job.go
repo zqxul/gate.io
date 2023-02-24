@@ -155,8 +155,8 @@ func (sj *SpotJob) Start() {
 	sj.subscribe()
 	log.Printf("[ %s ] job started", sj.CurrencyPair.Base)
 
-	go sj.beat(sj.socket)
-	go sj.listen(sj.socket)
+	go sj.beat()
+	go sj.listen()
 
 	time.Sleep(time.Second * time.Duration(rand.Intn(90)))
 	go sj.refresh()
@@ -230,12 +230,12 @@ func (sj *SpotJob) refreshOrderBook() {
 	fmt.Printf("\n\n")
 }
 
-func (sj *SpotJob) listen(ws *websocket.Conn) {
+func (sj *SpotJob) listen() {
 	for {
 		if sj.Stoped {
 			return
 		}
-		_, message, err := ws.ReadMessage()
+		_, message, err := sj.socket.ReadMessage()
 		if err != nil {
 			sj.State[1] = false
 			log.Printf("job [%s] read socket message err: %v\n", sj.CurrencyPair.Base, err)
@@ -270,7 +270,7 @@ func (sj *SpotJob) unsubscribe() {
 	}
 }
 
-func (sj *SpotJob) beat(ws *websocket.Conn) {
+func (sj *SpotJob) beat() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -278,7 +278,7 @@ func (sj *SpotJob) beat(ws *websocket.Conn) {
 		case <-ticker.C:
 			t := time.Now().Unix()
 			pingMsg := channel.NewMsg(channel.SpotChannelPing, "", t, []string{})
-			if err := pingMsg.Send(ws); err != nil {
+			if err := pingMsg.Send(sj.socket); err != nil {
 				sj.State[0] = false
 				log.Printf("job [%s] ping err %v\n", sj.CurrencyPair.Base, err)
 				continue
