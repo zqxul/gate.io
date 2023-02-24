@@ -193,6 +193,9 @@ func (sj *SpotJob) refresh() {
 	ticker := time.NewTicker(time.Duration(rand.Intn(90)))
 	defer ticker.Stop()
 	for {
+		if sj.Stoped {
+			return
+		}
 		select {
 		case <-ticker.C:
 			go sj.refreshOrders()
