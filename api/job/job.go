@@ -19,7 +19,7 @@ type JobInfo struct {
 }
 
 func init() {
-	jobGroup := api.R.Group("/job")
+	jobGroup := api.R.Group("/gateio/job")
 	jobGroup.GET("/list", HandleListJobs)
 	jobGroup.GET("/:id", HandleGetJob)
 	jobGroup.POST("/:id", HandleEditJob)
