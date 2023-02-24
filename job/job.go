@@ -81,16 +81,20 @@ func Get(ID string) *SpotJob {
 func Stop(ID string) (exist bool) {
 	item := Get(ID)
 	if item != nil {
-		item.Stop()
+		if !item.Stoped {
+			item.Stop()
+		}
 		return true
 	}
 	return
 }
 
-func ResumeJob(ID string) (exist bool) {
+func Resume(ID string) (exist bool) {
 	item := Get(ID)
 	if item != nil {
-		item.Start()
+		if item.Stoped {
+			item.Start()
+		}
 		return true
 	}
 	return

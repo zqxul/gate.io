@@ -100,7 +100,7 @@ func HandleStopJob(c *gin.Context) {
 
 func HandleResumeJob(c *gin.Context) {
 	ID := c.Param("id")
-	if exist := job.ResumeJob(ID); exist {
+	if exist := job.Resume(ID); exist {
 		c.JSON(http.StatusOK, api.Empty)
 		return
 	}
