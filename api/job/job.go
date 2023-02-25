@@ -37,7 +37,7 @@ func init() {
 	jobGroup.POST("/:id", HandleEditJob)
 	jobGroup.POST("/:id/stop", HandleStopJob)
 	jobGroup.POST("/:id/resume", HandleResumeJob)
-	jobGroup.DELETE("':id", HandleDeleteJob)
+	jobGroup.DELETE(":id", HandleDeleteJob)
 }
 
 func HandleListJobs(c *gin.Context) {
