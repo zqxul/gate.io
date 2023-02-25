@@ -132,6 +132,7 @@ func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret st
 		Secret:       secret,
 		CurrencyPair: gateapi.CurrencyPair{Id: currencyPairId},
 		ctx:          context.TODO(),
+		Stoped:       true,
 	}
 	list = append(list, job)
 	return job
