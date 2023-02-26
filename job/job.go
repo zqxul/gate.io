@@ -57,15 +57,16 @@ func Edit(ID string, gap, orderAmount, fund decimal.Decimal, orderNum int) (exis
 }
 
 func Remove(ID string) (exist bool) {
-	newJobs := make([]*SpotJob, 0)
-	for _, item := range list {
-		if item.CurrencyPair.Id != ID {
-			newJobs = append(newJobs, item)
-		} else {
-			exist = true
+	if item := Get(ID); item != nil {
+		item.Stop()
+		newJobs := make([]*SpotJob, 0)
+		for _, item := range list {
+			if item.CurrencyPair.Id != ID {
+				newJobs = append(newJobs, item)
+			}
 		}
+		list = newJobs
 	}
-	list = newJobs
 	return
 }
 
@@ -196,9 +197,6 @@ func (sj *SpotJob) refresh() {
 	for {
 		select {
 		case <-ticker.C:
-			if sj.Stoped {
-				return
-			}
 			go sj.refreshOrders()
 			go sj.refreshOrderBook()
 		case <-sj.ctx.Done():
