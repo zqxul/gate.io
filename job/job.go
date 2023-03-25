@@ -452,7 +452,7 @@ func (sj *SpotJob) OnOrderBuyed(order *channel.Order) {
 	sellPrice := order.Price.
 		Mul(decimal.NewFromInt(1).
 			Add(sj.Gap).
-			Add(order.Fee.Add(order.PointFee).Add(order.GtFee).Add(order.RebatedFee).RoundUp(2).Div(order.Amount).RoundUp(2).Mul(decimal.NewFromInt(2)))).
+			Add(order.Fee.Add(order.PointFee).Add(order.GtFee).Add(order.RebatedFee).RoundUp(3).Div(order.Amount).RoundUp(3).Mul(decimal.NewFromInt(2)))).
 		Round(sj.CurrencyPair.Precision)
 	_, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
 		Account:      "spot",
