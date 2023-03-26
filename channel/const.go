@@ -44,6 +44,7 @@ const (
 	CurrencyPairDOGE_USDT = "DOGE_USDT"
 	CurrencyPairARB_USDT  = "ARB_USDT"
 	CurrencyPairTEM_USDT  = "TEM_USDT"
+	CurrencyPairEOS_USDT  = "EOS_USDT"
 )
 
 const (
