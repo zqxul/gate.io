@@ -382,7 +382,7 @@ func (sj *SpotJob) refreshOrders() {
 		sj.State[2] = false
 		return
 	}
-	nextOrderPrice := decimal.Avg(askPrice, bidPrice).Mul(decimal.NewFromInt(1).Sub(sj.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(sj.CurrencyPair.Precision)
+	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(decimal.NewFromInt(1).Sub(sj.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(sj.CurrencyPair.Precision)
 
 	// choose a better oder price
 	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
