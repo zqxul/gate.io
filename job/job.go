@@ -373,7 +373,7 @@ func (sj *SpotJob) handleOrderPutEvent(order *channel.Order) {
 }
 
 func (sj *SpotJob) refreshOrders() {
-	time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
+	time.Sleep(time.Duration(10+rand.Intn(10)) * time.Second)
 	sj.mux.Lock()
 	defer sj.mux.Unlock()
 
