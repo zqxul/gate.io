@@ -8,7 +8,6 @@ import (
 	"log"
 	"math/rand"
 	"net/url"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -382,8 +381,9 @@ func (sj *SpotJob) refreshOrders() {
 		sj.State[2] = false
 		return
 	}
-	rate := decimal.NewFromInt(1).Sub(sj.Gap.Mul(decimal.NewFromFloat(5)))
-	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(rate).RoundFloor(sj.CurrencyPair.Precision)
+	rate := sj.Gap.Mul(decimal.NewFromFloat(2))
+	nextRate := decimal.NewFromInt(1).Sub(rate).RoundUp(3)
+	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(nextRate).RoundFloor(sj.CurrencyPair.Precision)
 
 	// choose a better oder price
 	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
@@ -392,16 +392,18 @@ func (sj *SpotJob) refreshOrders() {
 	}
 
 	if len(buyOrders) > 0 {
-		sort.Slice(buyOrders, func(i, j int) bool {
-			left, _ := decimal.NewFromString(buyOrders[i].Price)
-			right, _ := decimal.NewFromString(buyOrders[j].Price)
-			return left.GreaterThan(right)
-		})
-		topOrderPrice, _ := decimal.NewFromString(buyOrders[0].Price)
-		topOrderPrice = topOrderPrice.Mul(decimal.NewFromFloat(1).Add(rate)).RoundFloor(sj.CurrencyPair.Precision)
-		if topOrderPrice.LessThanOrEqual(nextOrderPrice) {
-			bottomOrderPrice, _ := decimal.NewFromString(buyOrders[len(buyOrders)-1].Price)
-			nextOrderPrice = bottomOrderPrice.Mul(decimal.NewFromInt(1).Sub(rate)).RoundFloor(sj.CurrencyPair.Precision)
+		prices := make([]decimal.Decimal, 0)
+		for _, order := range buyOrders {
+			price, _ := decimal.NewFromString(order.Price)
+			prices = append(prices, price)
+		}
+		topPrice := decimal.Max(prices[0], prices...)
+		bottomPrice := decimal.Min(prices[0], prices...)
+		if nextTopPrice := topPrice.Mul(decimal.NewFromFloat(1).Add(rate)).RoundFloor(sj.CurrencyPair.Precision); nextTopPrice.LessThanOrEqual(nextOrderPrice) {
+			nextOrderPrice = nextTopPrice
+		} else {
+			nextBottomPrice := bottomPrice.Mul(decimal.NewFromFloat(1).Sub(rate)).RoundFloor(sj.CurrencyPair.Precision)
+			nextOrderPrice = nextBottomPrice
 		}
 	}
 
