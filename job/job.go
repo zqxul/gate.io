@@ -397,10 +397,10 @@ func (sj *SpotJob) refreshOrders() {
 			return left.GreaterThan(right)
 		})
 		topOrderPrice, _ := decimal.NewFromString(buyOrders[0].Price)
-		topOrderPrice = topOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap)).RoundFloor(sj.CurrencyPair.Precision)
+		topOrderPrice = topOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap.Mul(decimal.NewFromFloat(5)))).RoundFloor(sj.CurrencyPair.Precision)
 		if topOrderPrice.LessThanOrEqual(nextOrderPrice) {
 			bottomOrderPrice, _ := decimal.NewFromString(buyOrders[len(buyOrders)-1].Price)
-			nextOrderPrice = bottomOrderPrice.Mul(decimal.NewFromInt(1).Sub(sj.Gap.Mul(decimal.NewFromFloat(2)))).RoundFloor(sj.CurrencyPair.Precision)
+			nextOrderPrice = bottomOrderPrice.Mul(decimal.NewFromInt(1).Sub(sj.Gap.Mul(decimal.NewFromFloat(5)))).RoundFloor(sj.CurrencyPair.Precision)
 		}
 	}
 
