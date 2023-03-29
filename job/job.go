@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -198,8 +199,50 @@ func (sj *SpotJob) refresh() {
 		case <-ticker.C:
 			go sj.refreshOrders()
 			go sj.refreshOrderBook()
+			go sj.refreshMarket()
 		case <-sj.ctx.Done():
 			return
+		}
+	}
+}
+
+func (sj *SpotJob) refreshMarket() {
+	time.Sleep(time.Duration(60+rand.Intn(10)) * time.Second)
+	sj.mux.Lock()
+	defer sj.mux.Unlock()
+
+	now := time.Now()
+	from, to := now.Add(-time.Hour).Unix(), now.Unix()
+	result, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
+		From:     optional.NewInt64(from),
+		To:       optional.NewInt64(to),
+		Interval: optional.NewString("15m"),
+		Limit:    optional.NewInt32(10),
+	})
+	if err != nil {
+		log.Printf("ListCandlesticks err: %v\n", err)
+	}
+	start, _ := decimal.NewFromString(result[0][2])
+	end, _ := decimal.NewFromString(result[len(result)-1][2])
+
+	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
+	sort.Slice(buyOrders, func(i, j int) bool {
+		leftPrice, _ := decimal.NewFromString(buyOrders[i].Price)
+		rightPrice, _ := decimal.NewFromString(buyOrders[j].Price)
+		return leftPrice.LessThanOrEqual(rightPrice)
+	})
+
+	var cancelOrderID string
+	if start.LessThan(end) {
+		cancelOrderID = buyOrders[0].Id
+	} else if start.GreaterThan(end) {
+		cancelOrderID = buyOrders[len(buyOrders)-1].Id
+	}
+
+	if cancelOrderID != "" {
+		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
+		if err != nil {
+			log.Printf("CancelOrder err: %v", err)
 		}
 	}
 }
