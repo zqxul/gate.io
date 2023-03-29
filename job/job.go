@@ -38,6 +38,7 @@ type SpotJob struct {
 	State        [3]bool // [beat,socket,api]
 	Stoped       bool
 	ctx          context.Context
+	trendDown    bool
 }
 
 func List() []*SpotJob {
@@ -232,18 +233,14 @@ func (sj *SpotJob) refreshMarket() {
 		return leftPrice.LessThanOrEqual(rightPrice)
 	})
 
-	var cancelOrderID string
 	if start.LessThan(end) {
-		cancelOrderID = buyOrders[0].Id
-	} else if start.GreaterThan(end) {
-		cancelOrderID = buyOrders[len(buyOrders)-1].Id
-	}
-
-	if cancelOrderID != "" {
-		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
+		sj.trendDown = false
+		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[len(buyOrders)-1].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 		if err != nil {
 			log.Printf("CancelOrder err: %v", err)
 		}
+	} else if start.GreaterThan(end) {
+		sj.trendDown = true
 	}
 }
 
@@ -442,7 +439,7 @@ func (sj *SpotJob) refreshOrders() {
 		}
 		topPrice := decimal.Max(prices[0], prices...)
 		bottomPrice := decimal.Min(prices[0], prices...)
-		if nextTopPrice := topPrice.Mul(decimal.NewFromFloat(1).Add(rate)).RoundFloor(sj.CurrencyPair.Precision); nextTopPrice.LessThanOrEqual(nextOrderPrice) {
+		if nextTopPrice := topPrice.Mul(decimal.NewFromFloat(1).Add(rate)).RoundFloor(sj.CurrencyPair.Precision); nextTopPrice.LessThanOrEqual(nextOrderPrice) && !sj.trendDown {
 			nextOrderPrice = nextTopPrice
 		} else {
 			nextBottomPrice := bottomPrice.Mul(decimal.NewFromFloat(1).Sub(rate)).RoundFloor(sj.CurrencyPair.Precision)
