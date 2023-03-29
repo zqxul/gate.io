@@ -153,6 +153,10 @@ func (sj *SpotJob) init() {
 	sj.Stoped = false
 }
 
+func (sj *SpotJob) resetSocket() {
+	sj.socket = getSocket()
+}
+
 func (sj *SpotJob) Start() {
 	sj.init()
 	sj.subscribe()
@@ -279,6 +283,8 @@ func (sj *SpotJob) listen() {
 		if err != nil {
 			sj.State[1] = false
 			log.Printf("job [%s] read socket message err: %v\n", sj.CurrencyPair.Base, err)
+			sj.resetSocket()
+			log.Printf("job [%s] reset socket", sj.CurrencyPair.Base)
 			continue
 		}
 		gateMessage := channel.GateMessage{}
