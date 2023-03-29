@@ -422,7 +422,7 @@ func (sj *SpotJob) refreshOrders() {
 		return
 	}
 	rate := sj.Gap
-	if !sj.trendDown {
+	if sj.trendDown {
 		rate = rate.Mul(decimal.NewFromFloat(2))
 	}
 	nextRate := decimal.NewFromInt(1).Sub(rate).RoundUp(3)
