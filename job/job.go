@@ -421,7 +421,10 @@ func (sj *SpotJob) refreshOrders() {
 		sj.State[2] = false
 		return
 	}
-	rate := sj.Gap.Mul(decimal.NewFromFloat(2))
+	rate := sj.Gap
+	if !sj.trendDown {
+		rate = rate.Mul(decimal.NewFromFloat(2))
+	}
 	nextRate := decimal.NewFromInt(1).Sub(rate).RoundUp(3)
 	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(nextRate).RoundFloor(sj.CurrencyPair.Precision)
 
