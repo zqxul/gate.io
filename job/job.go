@@ -235,7 +235,7 @@ func (sj *SpotJob) refreshMarket() {
 
 	if start.LessThan(end) {
 		sj.trendDown = false
-		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[len(buyOrders)-1].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
+		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 		if err != nil {
 			log.Printf("CancelOrder err: %v", err)
 		}
