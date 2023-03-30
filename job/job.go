@@ -246,7 +246,7 @@ func (sj *SpotJob) refreshMarket() {
 		if err != nil {
 			log.Printf("CancelOrder err: %v", err)
 		}
-	} else if start.GreaterThan(end) {
+	} else if start.GreaterThan(end) || len(sellOrders) > 1 {
 		sj.trendDown = true
 	}
 }
