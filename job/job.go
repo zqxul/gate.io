@@ -313,7 +313,7 @@ func (sj *SpotJob) unsubscribe() {
 	ordersMsg := channel.NewMsg("spot.orders", "unsubscribe", t, []string{sj.CurrencyPair.Id})
 	ordersMsg.Sign(sj.Key, sj.Secret)
 	if err := ordersMsg.Send(sj.socket); err != nil {
-		panic(err)
+		log.Printf("unsubscribe err: %v\n", err)
 	}
 }
 
