@@ -223,7 +223,7 @@ func (sj *SpotJob) refreshMarket() {
 		From:     optional.NewInt64(from),
 		To:       optional.NewInt64(to),
 		Interval: optional.NewString("15m"),
-		Limit:    optional.NewInt32(20),
+		Limit:    optional.NewInt32(15),
 	})
 	if err != nil {
 		log.Printf("ListCandlesticks err: %v\n", err)
