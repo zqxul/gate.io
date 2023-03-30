@@ -46,7 +46,6 @@ const (
 	CurrencyPairTEM_USDT   = "TEM_USDT"
 	CurrencyPairEOS_USDT   = "EOS_USDT"
 	CurrencyPairMATIC_USDT = "MATIC_USDT"
-	CurrencyPairTRX_USDT   = "TRX_USDT"
 )
 
 const (
