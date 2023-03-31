@@ -39,6 +39,7 @@ type SpotJob struct {
 	Stoped       bool
 	ctx          context.Context
 	trendDown    bool
+	socketMux    sync.Mutex
 }
 
 func List() []*SpotJob {
@@ -302,6 +303,8 @@ func (sj *SpotJob) listen() {
 }
 
 func (sj *SpotJob) subscribe() {
+	sj.socketMux.Lock()
+	defer sj.socketMux.Unlock()
 	t := time.Now().Unix()
 	ordersMsg := channel.NewMsg("spot.orders", "subscribe", t, []string{sj.CurrencyPair.Id})
 	ordersMsg.Sign(sj.Key, sj.Secret)
@@ -311,6 +314,8 @@ func (sj *SpotJob) subscribe() {
 }
 
 func (sj *SpotJob) unsubscribe() {
+	sj.socketMux.Lock()
+	defer sj.socketMux.Unlock()
 	t := time.Now().Unix()
 	ordersMsg := channel.NewMsg("spot.orders", "unsubscribe", t, []string{sj.CurrencyPair.Id})
 	ordersMsg.Sign(sj.Key, sj.Secret)
@@ -325,18 +330,24 @@ func (sj *SpotJob) beat() {
 	for {
 		select {
 		case <-ticker.C:
-			t := time.Now().Unix()
-			pingMsg := channel.NewMsg(channel.SpotChannelPing, "", t, []string{})
-			if err := pingMsg.Send(sj.socket); err != nil {
-				sj.State[0] = false
-				log.Printf("job [%s] ping err %v\n", sj.CurrencyPair.Base, err)
-				continue
-			}
-			sj.State[0] = true
+			sj.Ping()
 		case <-sj.ctx.Done():
 			return
 		}
 	}
+}
+
+func (sj *SpotJob) Ping() {
+	sj.socketMux.Lock()
+	defer sj.socketMux.Unlock()
+	t := time.Now().Unix()
+	pingMsg := channel.NewMsg(channel.SpotChannelPing, "", t, []string{})
+	if err := pingMsg.Send(sj.socket); err != nil {
+		sj.State[0] = false
+		log.Printf("job [%s] ping err %v\n", sj.CurrencyPair.Base, err)
+		return
+	}
+	sj.State[0] = true
 }
 
 func (sj *SpotJob) lookupMarketPrice() (decimal.Decimal, decimal.Decimal, decimal.Decimal, decimal.Decimal, error) {
