@@ -232,20 +232,21 @@ func (sj *SpotJob) refreshMarket() {
 	start, _ := decimal.NewFromString(result[0][2])
 	end, _ := decimal.NewFromString(result[len(result)-1][2])
 
-	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
+	// there is a bug is condition side
+	currentOrders := sj.currentOrders("")
+	buyOrders, sellOrders := make([]gateapi.Order, 0), make([]gateapi.Order, 0)
+	for _, order := range currentOrders {
+		if order.Side == channel.SpotChannelOrderSideBuy {
+			buyOrders = append(buyOrders, order)
+		} else if order.Side == channel.SpotChannelOrderSideSell {
+			sellOrders = append(sellOrders, order)
+		}
+	}
 	sort.Slice(buyOrders, func(i, j int) bool {
 		leftPrice, _ := decimal.NewFromString(buyOrders[i].Price)
 		rightPrice, _ := decimal.NewFromString(buyOrders[j].Price)
 		return leftPrice.LessThanOrEqual(rightPrice)
 	})
-
-	// there is a bug is condition side
-	sellOrders := make([]gateapi.Order, 0)
-	for _, sellOrder := range buyOrders {
-		if sellOrder.Side == channel.SpotChannelOrderSideBuy {
-			sellOrders = append(sellOrders, sellOrder)
-		}
-	}
 
 	if start.LessThan(end) && len(sellOrders) <= 1 {
 		sj.trendDown = false
