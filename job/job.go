@@ -239,7 +239,13 @@ func (sj *SpotJob) refreshMarket() {
 		return leftPrice.LessThanOrEqual(rightPrice)
 	})
 
-	sellOrders := sj.currentOrders(channel.SpotChannelOrderSideSell)
+	// there is a bug is condition side
+	sellOrders := make([]gateapi.Order, 0)
+	for _, sellOrder := range buyOrders {
+		if sellOrder.Side == channel.SpotChannelOrderSideBuy {
+			sellOrders = append(sellOrders, sellOrder)
+		}
+	}
 
 	if start.LessThan(end) && len(sellOrders) <= 1 {
 		sj.trendDown = false
