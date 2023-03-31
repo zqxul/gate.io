@@ -250,6 +250,7 @@ func (sj *SpotJob) refreshMarket() {
 	} else if start.GreaterThan(end) || len(sellOrders) > 1 {
 		sj.trendDown = true
 	}
+	log.Printf("refreshMarket - [ %v ], trendDown: %v", sj.CurrencyPair.Base, sj.trendDown)
 }
 
 func (sj *SpotJob) refreshOrderBook() {
