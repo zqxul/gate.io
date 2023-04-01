@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"net/url"
 	"sort"
@@ -199,7 +200,8 @@ func (sj *SpotJob) getCurrencyAccount(currency string) gateapi.SpotAccount {
 }
 
 func (sj *SpotJob) refresh() {
-	ticker := time.NewTicker(time.Duration(rand.Intn(90)) * time.Second)
+	randNumber := int(math.Abs(float64(rand.Intn(90))))
+	ticker := time.NewTicker(time.Duration(randNumber) * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
