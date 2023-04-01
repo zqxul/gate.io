@@ -216,7 +216,8 @@ func (sj *SpotJob) refresh() {
 }
 
 func (sj *SpotJob) refreshMarket() {
-	time.Sleep(time.Duration(60+rand.Intn(10)) * time.Second)
+	randNumber := int(math.Abs(float64(rand.Intn(10))))
+	time.Sleep(time.Duration(60+randNumber) * time.Second)
 	sj.mux.Lock()
 	defer sj.mux.Unlock()
 
@@ -442,7 +443,8 @@ func (sj *SpotJob) handleOrderPutEvent(order *channel.Order) {
 }
 
 func (sj *SpotJob) refreshOrders() {
-	time.Sleep(time.Duration(10+rand.Intn(10)) * time.Second)
+	randNumber := int(math.Abs(float64(rand.Intn(10))))
+	time.Sleep(time.Duration(10+randNumber) * time.Second)
 	sj.mux.Lock()
 	defer sj.mux.Unlock()
 
