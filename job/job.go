@@ -439,7 +439,16 @@ func (sj *SpotJob) currentOrders(side string) []gateapi.Order {
 		return make([]gateapi.Order, 0)
 	}
 	sj.State[2] = true
-	return openOrders
+	if side == "" {
+		return openOrders
+	}
+	sideOrders := make([]gateapi.Order, 0)
+	for _, order := range openOrders {
+		if order.Side == side {
+			sideOrders = append(sideOrders, order)
+		}
+	}
+	return sideOrders
 }
 
 func (sj *SpotJob) handleOrderPutEvent(order *channel.Order) {
