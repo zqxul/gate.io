@@ -479,7 +479,7 @@ func (sj *SpotJob) refreshOrders() {
 
 	// choose a better oder price
 	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
-	if len(buyOrders) >= 10 {
+	if len(sj.currentOrders("")) >= 10 {
 		return
 	}
 
