@@ -216,6 +216,11 @@ func (sj *SpotJob) refresh() {
 }
 
 func (sj *SpotJob) refreshMarket() {
+	defer func() {
+		if panicErr := recover(); panicErr != nil {
+			log.Printf("refreshMarket panic err: %v", panicErr)
+		}
+	}()
 	randNumber := int(math.Abs(float64(rand.Intn(10))))
 	time.Sleep(time.Duration(60+randNumber) * time.Second)
 	sj.mux.Lock()
