@@ -477,9 +477,7 @@ func (sj *SpotJob) refreshOrders() {
 	}
 	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(nextRate).RoundFloor(sj.CurrencyPair.Precision)
 
-	if sellOrders := sj.currentOrders(channel.SpotChannelOrderSideSell); len(sellOrders) >= 1 {
-		return
-	}
+	sellOrders := sj.currentOrders(channel.SpotChannelOrderSideSell)
 
 	// choose a better oder price
 	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
@@ -492,7 +490,7 @@ func (sj *SpotJob) refreshOrders() {
 		}
 		topPrice := decimal.Max(prices[0], prices...)
 		bottomPrice := decimal.Min(prices[0], prices...)
-		if nextTopPrice := topPrice.Mul(decimal.NewFromFloat(1).Add(rate)).RoundFloor(sj.CurrencyPair.Precision); nextTopPrice.LessThanOrEqual(nextOrderPrice) && !sj.trendDown {
+		if nextTopPrice := topPrice.Mul(decimal.NewFromFloat(1).Add(rate)).RoundFloor(sj.CurrencyPair.Precision); nextTopPrice.LessThanOrEqual(nextOrderPrice) && !sj.trendDown && len(sellOrders) <= 1 {
 			nextOrderPrice = nextTopPrice
 		} else {
 			nextBottomPrice := bottomPrice.Mul(decimal.NewFromFloat(1).Sub(rate)).RoundFloor(sj.CurrencyPair.Precision)
