@@ -200,8 +200,7 @@ func (sj *SpotJob) getCurrencyAccount(currency string) gateapi.SpotAccount {
 }
 
 func (sj *SpotJob) refresh() {
-	randNumber := int(math.Abs(float64(rand.Intn(90))))
-	ticker := time.NewTicker(time.Duration(randNumber) * time.Second)
+	ticker := time.NewTicker(time.Duration(sj.getRandomSecond(90)) * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -221,8 +220,7 @@ func (sj *SpotJob) refreshMarket() {
 			log.Printf("refreshMarket panic err: %v", panicErr)
 		}
 	}()
-	randNumber := int(math.Abs(float64(rand.Intn(10))))
-	time.Sleep(time.Duration(60+randNumber) * time.Second)
+	time.Sleep(time.Duration(60+sj.getRandomSecond(10)) * time.Second)
 	sj.mux.Lock()
 	defer sj.mux.Unlock()
 
@@ -241,15 +239,7 @@ func (sj *SpotJob) refreshMarket() {
 	end, _ := decimal.NewFromString(result[len(result)-1][2])
 
 	// there is a bug is condition side
-	currentOrders := sj.currentOrders("")
-	buyOrders, sellOrders := make([]gateapi.Order, 0), make([]gateapi.Order, 0)
-	for _, order := range currentOrders {
-		if order.Side == channel.SpotChannelOrderSideBuy {
-			buyOrders = append(buyOrders, order)
-		} else if order.Side == channel.SpotChannelOrderSideSell {
-			sellOrders = append(sellOrders, order)
-		}
-	}
+	buyOrders, sellOrders, _ := sj.currentOrders()
 	sort.Slice(buyOrders, func(i, j int) bool {
 		leftPrice, _ := decimal.NewFromString(buyOrders[i].Price)
 		rightPrice, _ := decimal.NewFromString(buyOrders[j].Price)
@@ -276,7 +266,7 @@ func (sj *SpotJob) refreshOrderBook() {
 		return
 	}
 	sj.State[2] = true
-	orders := sj.currentOrders("")
+	_, _, openOrders := sj.currentOrders()
 	fmt.Printf("\n\n")
 	log.Printf("%s\n", strings.Repeat("*", 185))
 	log.Printf("%s [Currency: %-20s            Available: %-20s] %s\n", strings.Repeat("*", 54), account.Currency, account.Available, strings.Repeat("*", 54))
@@ -284,9 +274,9 @@ func (sj *SpotJob) refreshOrderBook() {
 	log.Printf("%s\n", strings.Repeat("*", 185))
 	log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", "CURRENCY", "ID", "TEXT", "SIDE", "PRICE", "AMOUNT", "LEFT", "TIME")
 	log.Printf("%s\n", strings.Repeat("*", 185))
-	for i, order := range orders {
+	for i, order := range openOrders {
 		log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", sj.CurrencyPair.Base, order.Id, order.Text, order.Side, order.Price, order.Amount, order.Left, time.UnixMilli(order.CreateTimeMs).Format("2006-01-02 15:04:05"))
-		if i < len(orders)-1 {
+		if i < len(openOrders)-1 {
 			log.Printf("*%s*\n", strings.Repeat("-", 183))
 		}
 	}
@@ -428,27 +418,25 @@ func (sj *SpotJob) handleOrderUpdateEvent(order *channel.Order) {
 	log.Printf("order [%s]-[%s]-[%s] was updated: [price: %s, amount: %s/%s, fee: %s/%s]\n", order.Text, order.Side, sj.CurrencyPair.Base, order.Price, order.Amount.Sub(order.Left), order.Amount, order.Fee, order.FeeCurrency)
 }
 
-func (sj *SpotJob) currentOrders(side string) []gateapi.Order {
+func (sj *SpotJob) currentOrders() ([]gateapi.Order, []gateapi.Order, []gateapi.Order) {
 	openOrders, _, err := sj.client.SpotApi.ListOrders(sj.ctx, sj.CurrencyPair.Id, channel.SpotChannelOrdersStatusOpen, &gateapi.ListOrdersOpts{
 		Limit: optional.NewInt32(int32(sj.OrderNum)),
-		Side:  optional.NewString(side),
 	})
 	if err != nil {
 		sj.State[2] = false
 		log.Printf("handlePutEvent sj.client.SpotApi.ListOrders err: %v\n", err)
-		return make([]gateapi.Order, 0)
+		return make([]gateapi.Order, 0), make([]gateapi.Order, 0), make([]gateapi.Order, 0)
 	}
 	sj.State[2] = true
-	if side == "" {
-		return openOrders
-	}
-	sideOrders := make([]gateapi.Order, 0)
+	buyOrders, sellOrders := make([]gateapi.Order, 0), make([]gateapi.Order, 0)
 	for _, order := range openOrders {
-		if order.Side == side {
-			sideOrders = append(sideOrders, order)
+		if order.Side == channel.SpotChannelOrderSideBuy {
+			buyOrders = append(buyOrders, order)
+		} else if order.Side == channel.SpotChannelOrderSideSell {
+			sellOrders = append(sellOrders, order)
 		}
 	}
-	return sideOrders
+	return buyOrders, sellOrders, openOrders
 }
 
 func (sj *SpotJob) handleOrderPutEvent(order *channel.Order) {
@@ -456,9 +444,12 @@ func (sj *SpotJob) handleOrderPutEvent(order *channel.Order) {
 	sj.refreshOrders()
 }
 
+func (sj *SpotJob) getRandomSecond(base int) int {
+	return int(math.Abs(float64(rand.Intn(base))))
+}
+
 func (sj *SpotJob) refreshOrders() {
-	randNumber := int(math.Abs(float64(rand.Intn(10))))
-	time.Sleep(time.Duration(10+randNumber) * time.Second)
+	time.Sleep(time.Duration(10+sj.getRandomSecond(10)) * time.Second)
 	sj.mux.Lock()
 	defer sj.mux.Unlock()
 
@@ -477,11 +468,8 @@ func (sj *SpotJob) refreshOrders() {
 	}
 	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(nextRate).RoundFloor(sj.CurrencyPair.Precision)
 
-	sellOrders := sj.currentOrders(channel.SpotChannelOrderSideSell)
-
 	// choose a better oder price
-	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
-
+	buyOrders, sellOrders, _ := sj.currentOrders()
 	if len(buyOrders) > 0 {
 		prices := make([]decimal.Decimal, 0)
 		for _, order := range buyOrders {
