@@ -225,7 +225,8 @@ func (sj *SpotJob) refreshMarket() {
 	defer sj.mux.Unlock()
 
 	now := time.Now()
-	from, to := now.Add(-time.Hour).Unix(), now.Unix()
+	interval := time.Duration(15 * time.Minute)
+	from, to := now.Add(-15*interval).Unix(), now.Unix()
 	result, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
 		From:     optional.NewInt64(from),
 		To:       optional.NewInt64(to),
@@ -233,12 +234,15 @@ func (sj *SpotJob) refreshMarket() {
 		Limit:    optional.NewInt32(15),
 	})
 	if err != nil {
-		log.Printf("ListCandlesticks err: %v\n", err)
+		log.Printf("refreshMarket list candle sticks err: %v\n", err)
+		return
+	} else if len(result) == 0 {
+		log.Printf("refreshMarket list candle sticks result empty")
+		return
 	}
+
 	start, _ := decimal.NewFromString(result[0][2])
 	end, _ := decimal.NewFromString(result[len(result)-1][2])
-
-	// there is a bug is condition side
 	buyOrders, sellOrders, _ := sj.currentOrders()
 	sort.Slice(buyOrders, func(i, j int) bool {
 		leftPrice, _ := decimal.NewFromString(buyOrders[i].Price)
@@ -250,7 +254,7 @@ func (sj *SpotJob) refreshMarket() {
 		sj.trendDown = false
 		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 		if err != nil {
-			log.Printf("CancelOrder err: %v", err)
+			log.Printf("refreshMarket cancel order err: %v", err)
 		}
 	} else if len(sellOrders) > 1 || start.GreaterThan(end) {
 		sj.trendDown = true
