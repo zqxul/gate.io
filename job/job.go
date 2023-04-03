@@ -477,11 +477,12 @@ func (sj *SpotJob) refreshOrders() {
 	}
 	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(nextRate).RoundFloor(sj.CurrencyPair.Precision)
 
-	// choose a better oder price
-	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
-	if len(sj.currentOrders("")) >= 10 {
+	if sellOrders := sj.currentOrders(channel.SpotChannelOrderSideSell); len(sellOrders) >= 1 {
 		return
 	}
+
+	// choose a better oder price
+	buyOrders := sj.currentOrders(channel.SpotChannelOrderSideBuy)
 
 	if len(buyOrders) > 0 {
 		prices := make([]decimal.Decimal, 0)
