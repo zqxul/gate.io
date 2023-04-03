@@ -473,7 +473,7 @@ func (sj *SpotJob) refreshOrders() {
 	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(nextRate).RoundFloor(sj.CurrencyPair.Precision)
 
 	// choose a better oder price
-	buyOrders, _, _ := sj.currentOrders()
+	buyOrders, sellOrders, _ := sj.currentOrders()
 	if len(buyOrders) > 0 {
 		prices := make([]decimal.Decimal, 0)
 		for _, order := range buyOrders {
@@ -501,6 +501,10 @@ func (sj *SpotJob) refreshOrders() {
 	quoteAvailable, _ := decimal.NewFromString(quoteAcct.Available)
 	nextOrderTotalAmount := nextOrderPrice.Mul(nextOrderAmount).Round(sj.CurrencyPair.Precision)
 	if quoteAvailable.LessThan(nextOrderTotalAmount) {
+		return
+	}
+
+	if sj.trendDown && len(sellOrders) >= 2 {
 		return
 	}
 
