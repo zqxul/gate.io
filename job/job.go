@@ -257,7 +257,7 @@ func (sj *SpotJob) refreshMarket() {
 	}
 
 	latestStart, _ := decimal.NewFromString(result5[0][2])
-	latestEnd, _ := decimal.NewFromString(result5[len(result)-1][2])
+	latestEnd, _ := decimal.NewFromString(result5[len(result5)-1][2])
 
 	start, _ := decimal.NewFromString(result[0][2])
 	end, _ := decimal.NewFromString(result[len(result)-1][2])
