@@ -240,6 +240,23 @@ func (sj *SpotJob) refreshMarket() {
 		return
 	}
 
+	result5, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
+		From:     optional.NewInt64(now.Add(-15 * time.Minute).Unix()),
+		To:       optional.NewInt64(now.Unix()),
+		Interval: optional.NewString("5m"),
+		Limit:    optional.NewInt32(3),
+	})
+	if err != nil {
+		log.Printf("refreshMarket list 5m candle sticks err: %v\n", err)
+		return
+	} else if len(result) == 0 {
+		log.Printf("refreshMarket list 5m candle sticks result empty")
+		return
+	}
+
+	latestStart, _ := decimal.NewFromString(result5[0][2])
+	latestEnd, _ := decimal.NewFromString(result5[len(result)-1][2])
+
 	start, _ := decimal.NewFromString(result[0][2])
 	end, _ := decimal.NewFromString(result[len(result)-1][2])
 	buyOrders, sellOrders, _ := sj.currentOrders()
@@ -249,7 +266,7 @@ func (sj *SpotJob) refreshMarket() {
 		return leftPrice.LessThanOrEqual(rightPrice)
 	})
 
-	if start.LessThan(end) && len(sellOrders) <= 1 {
+	if start.LessThan(end) && latestStart.LessThan(latestEnd) && len(sellOrders) <= 1 {
 		sj.trendDown = false
 		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 		if err != nil {
