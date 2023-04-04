@@ -136,6 +136,7 @@ func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret st
 		CurrencyPair: gateapi.CurrencyPair{Id: currencyPairId},
 		ctx:          context.TODO(),
 		Stoped:       true,
+		trendDown:    true,
 	}
 	list = append(list, job)
 	return job
@@ -152,6 +153,7 @@ func (sj *SpotJob) init() {
 	sj.CurrencyPair = currencyPair
 	sj.State = [3]bool{}
 	sj.Stoped = false
+	sj.trendDown = true
 }
 
 func (sj *SpotJob) restart() {
@@ -267,6 +269,7 @@ func (sj *SpotJob) refreshMarket() {
 	})
 
 	if start.LessThan(end) && latestStart.LessThan(latestEnd) && len(sellOrders) <= 1 {
+		fmt.Printf("len sell order: %d\n", len(sellOrders))
 		sj.trendDown = false
 		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 		if err != nil {
