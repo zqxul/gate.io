@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"net/url"
 	"sort"
@@ -449,7 +448,11 @@ func (sj *SpotJob) handleOrderPutEvent(order *channel.Order) {
 }
 
 func (sj *SpotJob) getRandomSecond(base int) int {
-	return int(math.Abs(float64(rand.Intn(base))))
+	result := rand.Intn(base)
+	for result < 0 {
+		result = sj.getRandomSecond(base)
+	}
+	return result
 }
 
 func (sj *SpotJob) refreshOrders() {
