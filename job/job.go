@@ -492,9 +492,6 @@ func (sj *SpotJob) refreshOrders() {
 		return
 	}
 	rate := sj.Gap
-	if sj.trendDown {
-		rate = rate.Mul(decimal.NewFromFloat(2))
-	}
 	nextRate := decimal.NewFromInt(1).Sub(rate).RoundUp(3)
 	if !sj.trendDown {
 		nextRate = decimal.NewFromInt(1)
@@ -514,6 +511,9 @@ func (sj *SpotJob) refreshOrders() {
 		if nextTopPrice := topPrice.Mul(decimal.NewFromFloat(1).Add(rate)).RoundFloor(sj.CurrencyPair.Precision); nextTopPrice.LessThanOrEqual(nextOrderPrice) && !sj.trendDown {
 			nextOrderPrice = nextTopPrice
 		} else {
+			if sj.trendDown {
+				rate = decimal.NewFromFloat(2).Mul(rate)
+			}
 			nextBottomPrice := bottomPrice.Mul(decimal.NewFromFloat(1).Sub(rate)).RoundFloor(sj.CurrencyPair.Precision)
 			nextOrderPrice = nextBottomPrice
 		}
