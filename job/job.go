@@ -262,6 +262,9 @@ func (sj *SpotJob) refreshMarket() {
 	start, _ := decimal.NewFromString(result[0][2])
 	end, _ := decimal.NewFromString(result[len(result)-1][2])
 	buyOrders, sellOrders, _ := sj.currentOrders()
+	if len(buyOrders) == 0 {
+		return
+	}
 	sort.Slice(buyOrders, func(i, j int) bool {
 		leftPrice, _ := decimal.NewFromString(buyOrders[i].Price)
 		rightPrice, _ := decimal.NewFromString(buyOrders[j].Price)
@@ -269,7 +272,6 @@ func (sj *SpotJob) refreshMarket() {
 	})
 
 	if start.LessThan(end) && latestStart.LessThan(latestEnd) && len(sellOrders) <= 1 {
-		fmt.Printf("len sell order: %d\n", len(sellOrders))
 		sj.trendDown = false
 		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 		if err != nil {
@@ -277,6 +279,10 @@ func (sj *SpotJob) refreshMarket() {
 		}
 	} else if len(sellOrders) > 1 || start.GreaterThan(end) {
 		sj.trendDown = true
+		_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[len(buyOrders)-1].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
+		if err != nil {
+			log.Printf("refreshMarket cancel order err: %v", err)
+		}
 	}
 	log.Printf("refreshMarket - [ %v ], trendDown: %v, start-%v:end-%v", sj.CurrencyPair.Base, sj.trendDown, start, end)
 }
