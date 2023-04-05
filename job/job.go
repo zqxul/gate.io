@@ -281,7 +281,7 @@ func (sj *SpotJob) refreshMarket() {
 		sj.trendDown = true
 		cannelOrder := buyOrders[len(buyOrders)-1]
 		cancelPrice, _ := decimal.NewFromString(cannelOrder.Price)
-		if distanceRate := cancelPrice.DivRound(latestEnd, 2); distanceRate.LessThan(decimal.NewFromFloat(0.5)) {
+		if distanceRate := cancelPrice.DivRound(latestEnd, 2); distanceRate.GreaterThan(decimal.NewFromFloat(0.5)) {
 			_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, cannelOrder.Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 			if err != nil {
 				log.Printf("refreshMarket cancel order err: %v", err)
