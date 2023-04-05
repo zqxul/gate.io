@@ -277,7 +277,7 @@ func (sj *SpotJob) refreshMarket() {
 		if err != nil {
 			log.Printf("refreshMarket cancel order err: %v", err)
 		}
-	} else if len(sellOrders) > 1 || start.GreaterThan(end) {
+	} else if len(sellOrders) > 1 || latestStart.GreaterThan(latestEnd) {
 		sj.trendDown = true
 		cannelOrder := buyOrders[len(buyOrders)-1]
 		cancelPrice, _ := decimal.NewFromString(cannelOrder.Price)
