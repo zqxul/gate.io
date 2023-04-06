@@ -228,7 +228,7 @@ func (sj *SpotJob) refreshMarket() {
 	now := time.Now()
 	interval := time.Duration(15 * time.Minute)
 	from, to := now.Add(-15*interval).Unix(), now.Unix()
-	result, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
+	result15, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
 		From:     optional.NewInt64(from),
 		To:       optional.NewInt64(to),
 		Interval: optional.NewString("15m"),
@@ -237,7 +237,21 @@ func (sj *SpotJob) refreshMarket() {
 	if err != nil {
 		log.Printf("refreshMarket list candle sticks err: %v\n", err)
 		return
-	} else if len(result) == 0 {
+	} else if len(result15) == 0 {
+		log.Printf("refreshMarket list candle sticks result empty")
+		return
+	}
+
+	result10, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
+		From:     optional.NewInt64(from),
+		To:       optional.NewInt64(to),
+		Interval: optional.NewString("10m"),
+		Limit:    optional.NewInt32(10),
+	})
+	if err != nil {
+		log.Printf("refreshMarket list candle sticks err: %v\n", err)
+		return
+	} else if len(result15) == 0 {
 		log.Printf("refreshMarket list candle sticks result empty")
 		return
 	}
@@ -256,11 +270,14 @@ func (sj *SpotJob) refreshMarket() {
 		return
 	}
 
-	latestStart, _ := decimal.NewFromString(result5[0][2])
-	latestEnd, _ := decimal.NewFromString(result5[len(result5)-1][2])
+	start5, _ := decimal.NewFromString(result5[0][2])
+	end5, _ := decimal.NewFromString(result5[len(result5)-1][2])
 
-	start, _ := decimal.NewFromString(result[0][2])
-	end, _ := decimal.NewFromString(result[len(result)-1][2])
+	start10, _ := decimal.NewFromString(result10[0][2])
+	end10, _ := decimal.NewFromString(result10[len(result10)-1][2])
+
+	start15, _ := decimal.NewFromString(result15[0][2])
+	end15, _ := decimal.NewFromString(result15[len(result15)-1][2])
 
 	buyOrders, sellOrders, _ := sj.currentOrders()
 	if len(buyOrders) > 0 {
@@ -270,17 +287,17 @@ func (sj *SpotJob) refreshMarket() {
 			return leftPrice.LessThanOrEqual(rightPrice)
 		})
 
-		if start.LessThan(end) && latestStart.LessThan(latestEnd) && len(sellOrders) <= 5 {
+		if start15.LessThan(end15) && start10.LessThan(end10) && start5.LessThan(end5) && len(sellOrders) <= 5 {
 			sj.trendDown = false
 			_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 			if err != nil {
 				log.Printf("refreshMarket cancel order err: %v", err)
 			}
-		} else if len(sellOrders) >= 1 || latestStart.GreaterThan(latestEnd) {
+		} else if len(sellOrders) >= 1 || start5.GreaterThan(end5) {
 			sj.trendDown = true
 			cannelOrder := buyOrders[len(buyOrders)-1]
 			cancelPrice, _ := decimal.NewFromString(cannelOrder.Price)
-			if distanceRate := cancelPrice.DivRound(latestEnd, 2); distanceRate.GreaterThan(decimal.NewFromFloat(0.5)) {
+			if distanceRate := cancelPrice.DivRound(end5, 2); distanceRate.GreaterThan(decimal.NewFromFloat(0.5)) {
 				_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, cannelOrder.Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 				if err != nil {
 					log.Printf("refreshMarket cancel order err: %v", err)
@@ -288,7 +305,7 @@ func (sj *SpotJob) refreshMarket() {
 			}
 		}
 	}
-	log.Printf("refreshMarket - [ %v ], trendDown: %v, [start-%v:end-%v] [start5-%v:end5-%v]", sj.CurrencyPair.Base, sj.trendDown, start, end, latestStart, latestEnd)
+	log.Printf("refreshMarket - [ %v ], trendDown: %v, [start15-%v:end15-%v] [start10-%v:end10-%v] [start5-%v:end5-%v]", sj.CurrencyPair.Base, sj.trendDown, start15, end15, start10, end10, start5, end5)
 }
 
 func (sj *SpotJob) refreshOrderBook() {
