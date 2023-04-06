@@ -288,7 +288,7 @@ func (sj *SpotJob) refreshMarket() {
 			}
 		}
 	}
-	log.Printf("refreshMarket - [ %v ], trendDown: %v, start-%v:end-%v", sj.CurrencyPair.Base, sj.trendDown, start, end)
+	log.Printf("refreshMarket - [ %v ], trendDown: %v, [start-%v:end-%v] [start5-%v:end5-%v]", sj.CurrencyPair.Base, sj.trendDown, start, end)
 }
 
 func (sj *SpotJob) refreshOrderBook() {
