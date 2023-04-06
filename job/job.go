@@ -261,6 +261,8 @@ func (sj *SpotJob) refreshMarket() {
 
 	start, _ := decimal.NewFromString(result[0][2])
 	end, _ := decimal.NewFromString(result[len(result)-1][2])
+
+	log.Printf("refreshMarket - [ %v ], trendDown: %v, [start-%v:end-%v] [start5-%v:end5-%v]", sj.CurrencyPair.Base, sj.trendDown, start, end, latestStart, latestEnd)
 	buyOrders, sellOrders, _ := sj.currentOrders()
 	if len(buyOrders) == 0 {
 		return
@@ -288,7 +290,6 @@ func (sj *SpotJob) refreshMarket() {
 			}
 		}
 	}
-	log.Printf("refreshMarket - [ %v ], trendDown: %v, [start-%v:end-%v] [start5-%v:end5-%v]", sj.CurrencyPair.Base, sj.trendDown, start, end)
 }
 
 func (sj *SpotJob) refreshOrderBook() {
