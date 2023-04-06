@@ -539,6 +539,8 @@ func (sj *SpotJob) refreshOrders() {
 
 	if sj.trendDown && len(sellOrders) >= 1 {
 		return
+	} else if len(buyOrders) >= 10 {
+		return
 	}
 
 	if _, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
