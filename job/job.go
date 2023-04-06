@@ -270,7 +270,7 @@ func (sj *SpotJob) refreshMarket() {
 			return leftPrice.LessThanOrEqual(rightPrice)
 		})
 
-		if start.LessThan(end) && latestStart.LessThan(latestEnd) && len(sellOrders) < 5 {
+		if start.LessThan(end) && latestStart.LessThan(latestEnd) && len(sellOrders) <= 5 {
 			sj.trendDown = false
 			_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 			if err != nil {
