@@ -245,8 +245,8 @@ func (sj *SpotJob) refreshMarket() {
 	result10, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
 		From:     optional.NewInt64(from),
 		To:       optional.NewInt64(to),
-		Interval: optional.NewString("10m"),
-		Limit:    optional.NewInt32(10),
+		Interval: optional.NewString("5m"),
+		Limit:    optional.NewInt32(20),
 	})
 	if err != nil {
 		log.Printf("refreshMarket list candle sticks err: %v\n", err)
