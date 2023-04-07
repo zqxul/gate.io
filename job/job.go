@@ -38,7 +38,6 @@ type SpotJob struct {
 	State        [3]bool // [beat,socket,api]
 	Stoped       bool
 	ctx          context.Context
-	trendDown    bool
 	socketMux    sync.Mutex
 }
 
@@ -136,7 +135,6 @@ func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret st
 		CurrencyPair: gateapi.CurrencyPair{Id: currencyPairId},
 		ctx:          context.TODO(),
 		Stoped:       true,
-		trendDown:    true,
 	}
 	list = append(list, job)
 	return job
@@ -153,7 +151,6 @@ func (sj *SpotJob) init() {
 	sj.CurrencyPair = currencyPair
 	sj.State = [3]bool{}
 	sj.Stoped = false
-	sj.trendDown = true
 }
 
 func (sj *SpotJob) restart() {
@@ -215,6 +212,67 @@ func (sj *SpotJob) refresh() {
 	}
 }
 
+type Trend struct {
+	Start300 decimal.Decimal
+	End300   decimal.Decimal
+	Start100 decimal.Decimal
+	End100   decimal.Decimal
+	Start25  decimal.Decimal
+	End25    decimal.Decimal
+}
+
+func (trend Trend) Up() bool {
+	return trend.Start300.LessThan(trend.End300) &&
+		trend.Start100.LessThan(trend.End100) &&
+		trend.Start25.LessThan(trend.End25)
+}
+
+func (trend Trend) Down() bool {
+	return !trend.Up()
+}
+
+func (trend Trend) String() string {
+	data, err := json.Marshal(trend)
+	if err != nil {
+		log.Printf("marshal trend err: %v\n", err)
+	}
+	return string(data)
+}
+
+func (trend Trend) Sign() string {
+	var sign string
+	if trend.Up() {
+		sign = "Up"
+	} else {
+		sign = "Down"
+	}
+	return sign
+}
+
+func (sj *SpotJob) trend() Trend {
+	now := time.Now()
+	from, to := now.Add(-time.Hour*5).Unix(), now.Unix()
+	result300, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
+		From:     optional.NewInt64(from),
+		To:       optional.NewInt64(to),
+		Interval: optional.NewString("5m"),
+		Limit:    optional.NewInt32(60),
+	})
+	if err != nil {
+		log.Printf("refreshMarket list candle sticks err: %v\n", err)
+		return Trend{}
+	}
+	result100, result25 := result300[41:], result300[56:]
+
+	start300, _ := decimal.NewFromString(result300[0][2])
+	end300, _ := decimal.NewFromString(result300[len(result300)-1][2])
+	start100, _ := decimal.NewFromString(result100[0][2])
+	end100, _ := decimal.NewFromString(result100[len(result100)-1][2])
+	start25, _ := decimal.NewFromString(result25[0][2])
+	end25, _ := decimal.NewFromString(result25[len(result25)-1][2])
+	return Trend{Start300: start300, End300: end300, Start100: start100, End100: end100, Start25: start25, End25: end25}
+}
+
 func (sj *SpotJob) refreshMarket() {
 	defer func() {
 		if panicErr := recover(); panicErr != nil {
@@ -225,101 +283,40 @@ func (sj *SpotJob) refreshMarket() {
 	sj.mux.Lock()
 	defer sj.mux.Unlock()
 
-	now := time.Now()
-	interval := time.Duration(15 * time.Minute)
-	from, to := now.Add(-15*interval).Unix(), now.Unix()
-	result15, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
-		From:     optional.NewInt64(from),
-		To:       optional.NewInt64(to),
-		Interval: optional.NewString("15m"),
-		Limit:    optional.NewInt32(15),
-	})
-	if err != nil {
-		log.Printf("refreshMarket list candle sticks err: %v\n", err)
-		return
-	} else if len(result15) == 0 {
-		log.Printf("refreshMarket list candle sticks result empty")
-		return
-	}
-
-	result10, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
-		From:     optional.NewInt64(from),
-		To:       optional.NewInt64(to),
-		Interval: optional.NewString("5m"),
-		Limit:    optional.NewInt32(20),
-	})
-	if err != nil {
-		log.Printf("refreshMarket list candle sticks err: %v\n", err)
-		return
-	} else if len(result15) == 0 {
-		log.Printf("refreshMarket list candle sticks result empty")
-		return
-	}
-
-	result5, _, err := sj.client.SpotApi.ListCandlesticks(sj.ctx, sj.CurrencyPair.Id, &gateapi.ListCandlesticksOpts{
-		From:     optional.NewInt64(now.Add(-15 * time.Minute).Unix()),
-		To:       optional.NewInt64(now.Unix()),
-		Interval: optional.NewString("5m"),
-		Limit:    optional.NewInt32(3),
-	})
-	if err != nil {
-		log.Printf("refreshMarket list 5m candle sticks err: %v\n", err)
-		return
-	} else if len(result5) == 0 {
-		log.Printf("refreshMarket list 5m candle sticks result empty")
-		return
-	}
-
-	start5, _ := decimal.NewFromString(result5[0][2])
-	end5, _ := decimal.NewFromString(result5[len(result5)-1][2])
-
-	start10, _ := decimal.NewFromString(result10[0][2])
-	end10, _ := decimal.NewFromString(result10[len(result10)-1][2])
-
-	start15, _ := decimal.NewFromString(result15[0][2])
-	end15, _ := decimal.NewFromString(result15[len(result15)-1][2])
-
+	trend := sj.trend()
 	buyOrders, sellOrders, _ := sj.currentOrders()
+	_, _, bidPrice, _, _ := sj.lookupMarketPrice()
 	if len(buyOrders) > 0 {
-		sort.Slice(buyOrders, func(i, j int) bool {
-			leftPrice, _ := decimal.NewFromString(buyOrders[i].Price)
-			rightPrice, _ := decimal.NewFromString(buyOrders[j].Price)
-			return leftPrice.LessThanOrEqual(rightPrice)
-		})
-
-		if start15.LessThan(end15) && start10.LessThan(end10) && start5.LessThan(end5) && len(sellOrders) <= 5 {
-			sj.trendDown = false
+		if trend.Up() && len(sellOrders) <= 2 {
 			_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 			if err != nil {
 				log.Printf("refreshMarket cancel order err: %v", err)
 			}
-		} else if len(sellOrders) >= 1 || start5.GreaterThan(end5) {
-			sj.trendDown = true
-			cannelOrder := buyOrders[len(buyOrders)-1]
-			cancelPrice, _ := decimal.NewFromString(cannelOrder.Price)
-			if distanceRate := cancelPrice.DivRound(end5, 2); distanceRate.GreaterThan(decimal.NewFromFloat(0.5)) {
-				_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, cannelOrder.Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
+		} else if trend.Down() {
+			cancelOrder := buyOrders[len(buyOrders)-1]
+			cancelPrice, _ := decimal.NewFromString(cancelOrder.Price)
+			if distanceRate := cancelPrice.DivRound(bidPrice, 2); distanceRate.GreaterThan(decimal.NewFromFloat(0.5)) {
+				_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, cancelOrder.Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 				if err != nil {
 					log.Printf("refreshMarket cancel order err: %v", err)
 				}
 			}
 		}
 	}
-	log.Printf("refreshMarket - [ %v ], trendDown: %v, [start15-%v:end15-%v] [start10-%v:end10-%v] [start5-%v:end5-%v]", sj.CurrencyPair.Base, sj.trendDown, start15, end15, start10, end10, start5, end5)
 }
 
 func (sj *SpotJob) refreshOrderBook() {
-	account := sj.getCurrencyAccount(sj.CurrencyPair.Quote)
 	askPrice, _, bidPrice, _, err := sj.lookupMarketPrice()
 	if err != nil {
 		sj.State[2] = false
 		return
 	}
 	sj.State[2] = true
+	trend := sj.trend()
 	_, _, openOrders := sj.currentOrders()
 	fmt.Printf("\n\n")
 	log.Printf("%s\n", strings.Repeat("*", 185))
-	log.Printf("%s [Currency: %-20s            Available: %-20s] %s\n", strings.Repeat("*", 54), account.Currency, account.Available, strings.Repeat("*", 54))
+	log.Printf("%s [ %4s ] %s\n", strings.Repeat("*", 88), trend.Sign(), strings.Repeat("*", 88))
 	log.Printf("%s %-10s - Ask :::::::::::::::::: - Market - :::::::::::::::::: Bid - %10s %s\n", strings.Repeat("*", 51), askPrice, bidPrice, strings.Repeat("*", 51))
 	log.Printf("%s\n", strings.Repeat("*", 185))
 	log.Printf("| %20s | %20s | %20s | %20s | %20s | %20s | %20s | %20s |\n", "CURRENCY", "ID", "TEXT", "SIDE", "PRICE", "AMOUNT", "LEFT", "TIME")
@@ -469,9 +466,7 @@ func (sj *SpotJob) handleOrderUpdateEvent(order *channel.Order) {
 }
 
 func (sj *SpotJob) currentOrders() ([]gateapi.Order, []gateapi.Order, []gateapi.Order) {
-	openOrders, _, err := sj.client.SpotApi.ListOrders(sj.ctx, sj.CurrencyPair.Id, channel.SpotChannelOrdersStatusOpen, &gateapi.ListOrdersOpts{
-		Limit: optional.NewInt32(int32(sj.OrderNum)),
-	})
+	openOrders, _, err := sj.client.SpotApi.ListOrders(sj.ctx, sj.CurrencyPair.Id, channel.SpotChannelOrdersStatusOpen, &gateapi.ListOrdersOpts{})
 	if err != nil {
 		sj.State[2] = false
 		log.Printf("handlePutEvent sj.client.SpotApi.ListOrders err: %v\n", err)
@@ -486,6 +481,16 @@ func (sj *SpotJob) currentOrders() ([]gateapi.Order, []gateapi.Order, []gateapi.
 			sellOrders = append(sellOrders, order)
 		}
 	}
+	sort.Slice(buyOrders, func(i, j int) bool {
+		leftPrice, _ := decimal.NewFromString(buyOrders[i].Price)
+		rightPrice, _ := decimal.NewFromString(buyOrders[j].Price)
+		return leftPrice.LessThanOrEqual(rightPrice)
+	})
+	sort.Slice(sellOrders, func(i, j int) bool {
+		leftPrice, _ := decimal.NewFromString(sellOrders[i].Price)
+		rightPrice, _ := decimal.NewFromString(sellOrders[j].Price)
+		return leftPrice.LessThanOrEqual(rightPrice)
+	})
 	return buyOrders, sellOrders, openOrders
 }
 
@@ -507,6 +512,7 @@ func (sj *SpotJob) refreshOrders() {
 	sj.mux.Lock()
 	defer sj.mux.Unlock()
 
+	trend := sj.trend()
 	askPrice, _, bidPrice, _, err := sj.lookupMarketPrice()
 	if err != nil {
 		sj.State[2] = false
@@ -514,29 +520,24 @@ func (sj *SpotJob) refreshOrders() {
 	}
 	rate := sj.Gap
 	nextRate := decimal.NewFromInt(1).Sub(rate).RoundUp(3)
-	if !sj.trendDown {
+	if trend.Up() {
 		nextRate = decimal.NewFromInt(1)
 	}
 	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(nextRate).RoundFloor(sj.CurrencyPair.Precision)
 
 	// choose a better oder price
-	buyOrders, sellOrders, _ := sj.currentOrders()
+	buyOrders, _, _ := sj.currentOrders()
 	if len(buyOrders) > 0 {
-		prices := make([]decimal.Decimal, 0)
-		for _, order := range buyOrders {
-			price, _ := decimal.NewFromString(order.Price)
-			prices = append(prices, price)
-		}
-		topPrice := decimal.Max(prices[0], prices...)
-		bottomPrice := decimal.Min(prices[0], prices...)
-		if nextTopPrice := topPrice.Mul(decimal.NewFromFloat(1).Add(rate)).RoundFloor(sj.CurrencyPair.Precision); nextTopPrice.LessThanOrEqual(nextOrderPrice) && !sj.trendDown {
+		topPrice, _ := decimal.NewFromString(buyOrders[len(buyOrders)-1].Price)
+		bottomPrice, _ := decimal.NewFromString(buyOrders[0].Price)
+		if nextTopPrice := topPrice.Mul(decimal.NewFromFloat(1).Add(rate)).RoundFloor(sj.CurrencyPair.Precision); nextTopPrice.LessThanOrEqual(nextOrderPrice) && trend.Up() {
 			nextOrderPrice = nextTopPrice
 		} else {
-			if sj.trendDown {
-				rate = decimal.NewFromFloat(2).Mul(rate)
-			}
 			nextBottomPrice := bottomPrice.Mul(decimal.NewFromFloat(1).Sub(rate)).RoundFloor(sj.CurrencyPair.Precision)
 			nextOrderPrice = nextBottomPrice
+		}
+		if (trend.Up() && nextOrderPrice.LessThanOrEqual(topPrice)) || (trend.Down() && nextOrderPrice.GreaterThanOrEqual(bottomPrice)) {
+			return
 		}
 	}
 
@@ -554,33 +555,29 @@ func (sj *SpotJob) refreshOrders() {
 		return
 	}
 
-	if sj.trendDown && len(sellOrders) >= 1 {
-		return
-	} else if len(buyOrders) >= 10 {
-		return
-	}
-
-	if _, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
-		Account:      "spot",
-		Text:         fmt.Sprintf("t-%s", util.RandomID(sj.OrderNum)),
-		CurrencyPair: sj.CurrencyPair.Id,
-		Side:         channel.SpotChannelOrderSideBuy,
-		Price:        nextOrderPrice.String(),
-		Amount:       nextOrderAmount.String(),
-	}); err != nil {
-		sj.State[2] = false
-		log.Printf("[ %s ] refreshOrders err: %+v\n", sj.CurrencyPair.Base, err)
-		return
+	if len(buyOrders) < 10 {
+		if _, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
+			Account:      "spot",
+			Text:         fmt.Sprintf("t-%s", util.RandomID(sj.OrderNum)),
+			CurrencyPair: sj.CurrencyPair.Id,
+			Side:         channel.SpotChannelOrderSideBuy,
+			Price:        nextOrderPrice.String(),
+			Amount:       nextOrderAmount.String(),
+		}); err != nil {
+			sj.State[2] = false
+			log.Printf("[ %s ] refreshOrders err: %+v\n", sj.CurrencyPair.Base, err)
+			return
+		}
 	}
 	sj.State[2] = true
 }
 
 func (sj *SpotJob) handleOrderFinishEvent(order *channel.Order) {
 	if order.Left.GreaterThan(decimal.Zero) {
-		log.Printf("Order [%s] was cancelled, [price: %s, amount: %s/%s]\n", order.Text, order.Price, order.Left, order.Amount)
+		log.Printf("Order [%s]-[%s] was cancelled, [price: %s, amount: %s/%s]\n", sj.CurrencyPair.Base, order.Text, order.Price, order.Left, order.Amount)
 		return
 	}
-	log.Printf("Order [%s] was closed, [price: %s, amount: %s, fee: %s/%s]\n", order.Text, order.Price, order.Amount, order.Fee, order.FeeCurrency)
+	log.Printf("Order [%s]-[%s] was closed, [price: %s, amount: %s, fee: %s/%s]\n", sj.CurrencyPair.Base, order.Text, order.Price, order.Amount, order.Fee, order.FeeCurrency)
 	switch order.Side {
 	case channel.SpotChannelOrderSideBuy:
 		sj.OnOrderBuyed(order)
