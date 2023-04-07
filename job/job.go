@@ -284,10 +284,10 @@ func (sj *SpotJob) refreshMarket() {
 	defer sj.mux.Unlock()
 
 	trend := sj.trend()
-	buyOrders, sellOrders, _ := sj.currentOrders()
+	buyOrders, _, _ := sj.currentOrders()
 	_, _, bidPrice, _, _ := sj.lookupMarketPrice()
 	if len(buyOrders) > 0 {
-		if trend.Up() && len(sellOrders) <= 2 {
+		if trend.Up() {
 			_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
 			if err != nil {
 				log.Printf("refreshMarket cancel order err: %v", err)
