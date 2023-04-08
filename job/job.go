@@ -526,7 +526,7 @@ func (sj *SpotJob) refreshOrders() {
 	nextOrderPrice := decimal.Min(askPrice, bidPrice).Mul(nextRate).RoundFloor(sj.CurrencyPair.Precision)
 
 	// choose a better oder price
-	buyOrders, _, _ := sj.currentOrders()
+	buyOrders, sellOrders, _ := sj.currentOrders()
 	if len(buyOrders) > 0 {
 		topPrice, _ := decimal.NewFromString(buyOrders[len(buyOrders)-1].Price)
 		bottomPrice, _ := decimal.NewFromString(buyOrders[0].Price)
@@ -555,7 +555,9 @@ func (sj *SpotJob) refreshOrders() {
 		return
 	}
 
-	if len(buyOrders) < 10 {
+	bottomSellOrderPrice, _ := decimal.NewFromString(sellOrders[0].Price)
+	distance := bottomSellOrderPrice.Sub(nextOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap)))
+	if len(buyOrders) < 10 && distance.GreaterThan(decimal.Zero) {
 		if _, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
 			Account:      "spot",
 			Text:         fmt.Sprintf("t-%s", util.RandomID(sj.OrderNum)),
