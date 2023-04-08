@@ -277,7 +277,7 @@ func (sj *SpotJob) trend() Trend {
 	} else {
 		sj.Down++
 	}
-	log.Printf("refreshMarket, up:%d, down:%d", sj.Up, sj.Down)
+	log.Printf("refreshMarket-[%s], up:%d, down:%d", sj.CurrencyPair.Base, sj.Up, sj.Down)
 	return trend
 }
 
