@@ -39,6 +39,7 @@ type SpotJob struct {
 	Stoped       bool
 	ctx          context.Context
 	socketMux    sync.Mutex
+	Up, Down     int
 }
 
 func List() []*SpotJob {
@@ -270,7 +271,14 @@ func (sj *SpotJob) trend() Trend {
 	end100, _ := decimal.NewFromString(result100[len(result100)-1][2])
 	start25, _ := decimal.NewFromString(result25[0][2])
 	end25, _ := decimal.NewFromString(result25[len(result25)-1][2])
-	return Trend{Start300: start300, End300: end300, Start100: start100, End100: end100, Start25: start25, End25: end25}
+	trend := Trend{Start300: start300, End300: end300, Start100: start100, End100: end100, Start25: start25, End25: end25}
+	if trend.Up() {
+		sj.Up++
+	} else {
+		sj.Down++
+	}
+	log.Printf("refreshMarket, up:%d, down:%d", sj.Up, sj.Down)
+	return trend
 }
 
 func (sj *SpotJob) refreshMarket() {
