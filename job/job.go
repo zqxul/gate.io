@@ -275,7 +275,6 @@ func (sj *SpotJob) trend() Trend {
 	} else {
 		sj.Down++
 	}
-	log.Printf("refreshMarket-[%s], up:%d, down:%d", sj.CurrencyPair.Base, sj.Up, sj.Down)
 	return trend
 }
 
@@ -319,6 +318,7 @@ func (sj *SpotJob) refreshOrderBook() {
 	}
 	sj.State[2] = true
 	trend := sj.trend()
+	log.Printf("refreshOrderBook -[%s], market - up:%d, down:%d", sj.CurrencyPair.Base, sj.Up, sj.Down)
 	_, _, openOrders := sj.currentOrders()
 	fmt.Printf("\n\n")
 	log.Printf("%s\n", strings.Repeat("*", 185))
