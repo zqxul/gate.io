@@ -174,8 +174,6 @@ func (sj *SpotJob) Stop() {
 	sj.Stoped = true
 	sj.State = [3]bool{}
 	sj.ctx.Done()
-	sj.unsubscribe()
-	sj.socket.Close()
 }
 
 func (sj *SpotJob) getCurrencyAccount(currency string) gateapi.SpotAccount {
