@@ -323,6 +323,11 @@ func (sj *SpotJob) refreshMarket() {
 }
 
 func (sj *SpotJob) refreshOrderBook() {
+	defer func() {
+		if panicErr := recover(); panicErr != nil {
+			log.Printf("refreshOrderBook panic err: %v", panicErr)
+		}
+	}()
 	time.Sleep(time.Duration(60+sj.getRandomSecond(10)) * time.Second)
 	askPrice, _, bidPrice, _, err := sj.lookupMarketPrice()
 	if err != nil {
@@ -527,6 +532,11 @@ func (sj *SpotJob) getRandomSecond(base int) int {
 }
 
 func (sj *SpotJob) refreshOrders() {
+	defer func() {
+		if panicErr := recover(); panicErr != nil {
+			log.Printf("refreshOrders panic err: %v", panicErr)
+		}
+	}()
 	time.Sleep(time.Duration(10+sj.getRandomSecond(10)) * time.Second)
 	sj.mux.Lock()
 	defer sj.mux.Unlock()
@@ -575,10 +585,13 @@ func (sj *SpotJob) refreshOrders() {
 		return
 	}
 
-	bottomSellOrderPrice, _ := decimal.NewFromString(sellOrders[0].Price)
-	nextSellOrderPrice := nextOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap.Mul(decimal.NewFromFloat(3))))
-	distance := bottomSellOrderPrice.Sub(nextSellOrderPrice)
-	log.Printf("[%s] refresh orders, bottomSellOrderPrice[%v] - nextSellOrderPrice[%v] = distance[%v]", sj.CurrencyPair.Base, bottomSellOrderPrice, nextSellOrderPrice, distance)
+	var distance = decimal.NewFromFloat(1)
+	if len(sellOrders) > 0 {
+		bottomSellOrderPrice, _ := decimal.NewFromString(sellOrders[0].Price)
+		nextSellOrderPrice := nextOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap.Mul(decimal.NewFromFloat(3))))
+		distance = bottomSellOrderPrice.Sub(nextSellOrderPrice)
+		log.Printf("[%s] refresh orders, bottomSellOrderPrice[%v] - nextSellOrderPrice[%v] = distance[%v]", sj.CurrencyPair.Base, bottomSellOrderPrice, nextSellOrderPrice, distance)
+	}
 	if len(buyOrders) < 10 && distance.GreaterThan(decimal.Zero) {
 		if _, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
 			Account:      "spot",
