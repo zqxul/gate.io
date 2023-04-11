@@ -301,8 +301,8 @@ func (sj *SpotJob) refreshMarket() {
 	defer sj.mux.Unlock()
 
 	trend := sj.trend()
-	buyOrders, _, _ := sj.currentOrders()
-	_, _, bidPrice, _, _ := sj.lookupMarketPrice()
+	buyOrders, sellOrders, _ := sj.currentOrders()
+	// _, _, bidPrice, _, _ := sj.lookupMarketPrice()
 	if len(buyOrders) > 0 {
 		if trend.Up() {
 			_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, buyOrders[0].Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
@@ -310,12 +310,15 @@ func (sj *SpotJob) refreshMarket() {
 				log.Printf("refreshMarket cancel order err: %v", err)
 			}
 		} else if trend.Down() {
-			cancelOrder := buyOrders[len(buyOrders)-1]
-			cancelPrice, _ := decimal.NewFromString(cancelOrder.Price)
-			if distanceRate := cancelPrice.DivRound(bidPrice, 2); distanceRate.GreaterThan(decimal.NewFromFloat(0.7)) {
-				_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, cancelOrder.Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
-				if err != nil {
-					log.Printf("refreshMarket cancel order err: %v", err)
+			if len(sellOrders) > 0 {
+				sellPrice, _ := decimal.NewFromString(sellOrders[0].Price)
+				cancelOrder := buyOrders[len(buyOrders)-1]
+				cancelPrice, _ := decimal.NewFromString(cancelOrder.Price)
+				if distanceRate := cancelPrice.DivRound(sellPrice, 2); distanceRate.GreaterThan(decimal.NewFromFloat(0.95)) {
+					_, _, err := sj.client.SpotApi.CancelOrder(sj.ctx, cancelOrder.Id, sj.CurrencyPair.Id, &gateapi.CancelOrderOpts{})
+					if err != nil {
+						log.Printf("refreshMarket cancel order err: %v", err)
+					}
 				}
 			}
 		}
