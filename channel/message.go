@@ -57,6 +57,22 @@ func (m *Message) Send(c *websocket.Conn) error {
 	return c.WriteMessage(websocket.TextMessage, msgByte)
 }
 
+func (m *Message) Ping(c *websocket.Conn) error {
+	msgByte, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return c.WriteMessage(websocket.PingMessage, msgByte)
+}
+
+func (m *Message) Pong(c *websocket.Conn) error {
+	msgByte, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return c.WriteMessage(websocket.PongMessage, msgByte)
+}
+
 func NewMsg(channel, event string, t int64, payload []string) *Message {
 	return &Message{
 		Time:    t,

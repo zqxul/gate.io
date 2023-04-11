@@ -10,6 +10,7 @@ const (
 
 const (
 	SpotChannelPing    = "spot.ping"
+	SpotChannelPong    = "spot.pong"
 	SpotChannelTickers = "spot.tickers"
 	SpotChannelOrders  = "spot.orders" // auth required
 )

@@ -117,8 +117,20 @@ func getSocket() *websocket.Conn {
 	if err != nil {
 		panic(err)
 	}
-	socket.SetPingHandler(nil)
+	socket.SetPingHandler(func(appData string) error {
+		Pong(socket)
+		return nil
+	})
 	return socket
+}
+
+func Pong(socket *websocket.Conn) {
+	t := time.Now().Unix()
+	pongMsg := channel.NewMsg(channel.SpotChannelPong, "", t, []string{})
+	if err := pongMsg.Pong(socket); err != nil {
+		log.Printf("job ping err %v\n", err)
+		return
+	}
 }
 
 func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret string) *SpotJob {
@@ -311,6 +323,7 @@ func (sj *SpotJob) refreshMarket() {
 }
 
 func (sj *SpotJob) refreshOrderBook() {
+	time.Sleep(time.Duration(60+sj.getRandomSecond(10)) * time.Second)
 	askPrice, _, bidPrice, _, err := sj.lookupMarketPrice()
 	if err != nil {
 		sj.State[2] = false
@@ -401,7 +414,7 @@ func (sj *SpotJob) Ping() {
 	defer sj.socketMux.Unlock()
 	t := time.Now().Unix()
 	pingMsg := channel.NewMsg(channel.SpotChannelPing, "", t, []string{})
-	if err := pingMsg.Send(sj.socket); err != nil {
+	if err := pingMsg.Ping(sj.socket); err != nil {
 		sj.State[0] = false
 		log.Printf("job [%s] ping err %v\n", sj.CurrencyPair.Base, err)
 		return
@@ -543,6 +556,7 @@ func (sj *SpotJob) refreshOrders() {
 			nextOrderPrice = nextBottomPrice
 		}
 		if (trend.Up() && nextOrderPrice.LessThanOrEqual(topPrice)) || (trend.Down() && nextOrderPrice.GreaterThanOrEqual(bottomPrice)) {
+			log.Printf("refreshOrders trend - [%v], next order price - [%v], top order price - [%v], bottom order price - [%v]\n", nextOrderPrice, topPrice, bottomPrice, trend.Sign())
 			return
 		}
 	}
@@ -562,7 +576,9 @@ func (sj *SpotJob) refreshOrders() {
 	}
 
 	bottomSellOrderPrice, _ := decimal.NewFromString(sellOrders[0].Price)
-	distance := bottomSellOrderPrice.Sub(nextOrderPrice.Mul(decimal.NewFromFloat(2).Add(sj.Gap)))
+	nextSellOrderPrice := nextOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap.Mul(decimal.NewFromFloat(2))))
+	distance := bottomSellOrderPrice.Sub(nextSellOrderPrice)
+	log.Printf("[%s] refresh orders, bottomSellOrderPrice[%v] - nextSellOrderPrice[%v] = distance[%v]", sj.CurrencyPair.Base, bottomSellOrderPrice, nextSellOrderPrice, distance)
 	if len(buyOrders) < 10 && distance.GreaterThan(decimal.Zero) {
 		if _, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
 			Account:      "spot",
