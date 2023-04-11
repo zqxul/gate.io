@@ -576,7 +576,7 @@ func (sj *SpotJob) refreshOrders() {
 	}
 
 	bottomSellOrderPrice, _ := decimal.NewFromString(sellOrders[0].Price)
-	nextSellOrderPrice := nextOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap.Mul(decimal.NewFromFloat(2))))
+	nextSellOrderPrice := nextOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap.Mul(decimal.NewFromFloat(3))))
 	distance := bottomSellOrderPrice.Sub(nextSellOrderPrice)
 	log.Printf("[%s] refresh orders, bottomSellOrderPrice[%v] - nextSellOrderPrice[%v] = distance[%v]", sj.CurrencyPair.Base, bottomSellOrderPrice, nextSellOrderPrice, distance)
 	if len(buyOrders) < 10 && distance.GreaterThan(decimal.Zero) {
