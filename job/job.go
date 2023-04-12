@@ -526,12 +526,8 @@ func (sj *SpotJob) handleOrderPutEvent(order *channel.Order) {
 	sj.refreshOrders()
 }
 
-func (sj *SpotJob) getRandomSecond(base int) int64 {
-	result := int64(rand.Intn(base))
-	for result < 0 {
-		result = sj.getRandomSecond(base)
-	}
-	return result
+func (sj *SpotJob) getRandomSecond(base uint32) uint32 {
+	return base % rand.Uint32()
 }
 
 func (sj *SpotJob) refreshOrders() {
