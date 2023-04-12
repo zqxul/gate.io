@@ -209,7 +209,7 @@ func (sj *SpotJob) getCurrencyAccount(currency string) gateapi.SpotAccount {
 }
 
 func (sj *SpotJob) refresh() {
-	ticker := time.NewTicker(time.Duration(sj.getRandomSecond(90)) * time.Second)
+	ticker := time.NewTicker(30 + time.Duration(sj.getRandomSecond(60))*time.Second)
 	defer ticker.Stop()
 	for {
 		select {
