@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/antihax/optional v1.0.0
 	github.com/gateio/gateapi-go/v6 v6.34.0
+	github.com/gin-contrib/pprof v1.4.0
 	github.com/gin-gonic/gin v1.9.0
 	github.com/matoous/go-nanoid/v2 v2.0.0
 	github.com/shopspring/decimal v1.3.1

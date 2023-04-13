@@ -1,6 +1,9 @@
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-contrib/pprof"
+	"github.com/gin-gonic/gin"
+)
 
 var e *gin.Engine = gin.Default()
 var R gin.RouterGroup = *e.Group("/gateio")
@@ -16,6 +19,7 @@ func init() {
 }
 
 func Run() {
+	pprof.Register(e)
 	e.Run(":8888")
 }
 

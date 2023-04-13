@@ -38,7 +38,7 @@ type SpotJob struct {
 	State        [3]bool // [beat,socket,api]
 	Stoped       bool
 	ctx          context.Context
-	socketMux    sync.Mutex
+	socketMux    sync.RWMutex
 	Up, Down     int
 }
 
@@ -110,15 +110,6 @@ func getApiClient(key, secret string) *gateapi.APIClient {
 	return gateapi.NewAPIClient(cfg)
 }
 
-func getSocket(ctx context.Context) *websocket.Conn {
-	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
-	socket, _, err := websocket.Dial(context.TODO(), u.String(), &websocket.DialOptions{})
-	if err != nil {
-		panic(err)
-	}
-	return socket
-}
-
 func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret string) *SpotJob {
 	var job *SpotJob = Get(currencyPairId)
 	if job != nil {
@@ -139,28 +130,33 @@ func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret st
 	return job
 }
 
+func (sj *SpotJob) initSocket() {
+	sj.socketMux.Lock()
+	defer sj.socketMux.Unlock()
+	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
+	socket, _, err := websocket.Dial(sj.ctx, u.String(), &websocket.DialOptions{})
+	if err != nil {
+		panic(err)
+	}
+	sj.socket = socket
+}
+
 func (sj *SpotJob) init() {
 	sj.client = getApiClient(sj.Key, sj.Secret)
-	sj.socket = getSocket(sj.ctx)
+	sj.initSocket()
 	currencyPair, _, err := sj.client.SpotApi.GetCurrencyPair(sj.ctx, sj.CurrencyPair.Id)
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("Currency Pair: %+v\n", currencyPair)
+	log.Printf("Currency:[%v-%v], Fee-[%v], AmountPrecision-[%d]\n", currencyPair.Base, currencyPair.Quote, currencyPair.Fee, currencyPair.AmountPrecision)
 	sj.CurrencyPair = currencyPair
 	sj.State = [3]bool{}
 	sj.Stoped = false
 }
 
-func (sj *SpotJob) restart() {
-	sj.Stop()
-	sj.Start()
-}
-
 func (sj *SpotJob) Start() {
 	sj.init()
 	sj.subscribe()
-	log.Printf("[ %s ] job started", sj.CurrencyPair.Base)
 
 	go sj.beat()
 	go sj.listen()
@@ -350,10 +346,8 @@ func (sj *SpotJob) listen() {
 			return
 		}
 		gateMessage := channel.GateMessage{}
-		if err := wsjson.Read(sj.ctx, sj.socket, &gateMessage); err != nil {
-			sj.State[1] = false
-			log.Printf("job [%s], read gate message: %v err: %v\n", sj.CurrencyPair.Base, gateMessage, err)
-			sj.restart()
+		if err := sj.ReadMessage(&gateMessage); err != nil {
+			sj.initSocket()
 			continue
 		}
 		sj.State[1] = true
@@ -361,30 +355,42 @@ func (sj *SpotJob) listen() {
 	}
 }
 
+func (sj *SpotJob) ReadMessage(gateMessage *channel.GateMessage) error {
+	sj.socketMux.RLock()
+	defer sj.socketMux.RUnlock()
+	if err := wsjson.Read(sj.ctx, sj.socket, &gateMessage); err != nil {
+		sj.State[1] = false
+		log.Printf("job [%s], read gate message: %+v err: %v\n", sj.CurrencyPair.Base, gateMessage, err)
+		return err
+	}
+	return nil
+}
+
+func (sj *SpotJob) WriteMessage(msg *channel.Message) error {
+	sj.socketMux.RLock()
+	defer sj.socketMux.RUnlock()
+	msg.Sign(sj.Key, sj.Secret)
+	return msg.Send(sj.ctx, sj.socket)
+}
+
 func (sj *SpotJob) subscribe() {
-	sj.socketMux.Lock()
-	defer sj.socketMux.Unlock()
 	t := time.Now().Unix()
 	ordersMsg := channel.NewMsg("spot.orders", "subscribe", t, []string{sj.CurrencyPair.Id})
-	ordersMsg.Sign(sj.Key, sj.Secret)
-	if err := ordersMsg.Send(sj.ctx, sj.socket); err != nil {
+	if err := sj.WriteMessage(ordersMsg); err != nil {
 		panic(err)
 	}
 }
 
 func (sj *SpotJob) unsubscribe() {
-	sj.socketMux.Lock()
-	defer sj.socketMux.Unlock()
 	t := time.Now().Unix()
 	ordersMsg := channel.NewMsg("spot.orders", "unsubscribe", t, []string{sj.CurrencyPair.Id})
-	ordersMsg.Sign(sj.Key, sj.Secret)
-	if err := ordersMsg.Send(sj.ctx, sj.socket); err != nil {
-		log.Printf("unsubscribe err: %v\n", err)
+	if err := sj.WriteMessage(ordersMsg); err != nil {
+		panic(err)
 	}
 }
 
 func (sj *SpotJob) beat() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(25 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -397,11 +403,9 @@ func (sj *SpotJob) beat() {
 }
 
 func (sj *SpotJob) Ping() {
-	sj.socketMux.Lock()
-	defer sj.socketMux.Unlock()
 	t := time.Now().Unix()
 	pingMsg := channel.NewMsg(channel.SpotChannelPing, "", t, []string{})
-	if err := pingMsg.Send(sj.ctx, sj.socket); err != nil {
+	if err := sj.WriteMessage(pingMsg); err != nil {
 		sj.State[0] = false
 		log.Printf("job [%s] ping err %v\n", sj.CurrencyPair.Base, err)
 		return
