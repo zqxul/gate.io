@@ -20,6 +20,7 @@ func init() {
 
 func Run() {
 	pprof.Register(e)
+	pprof.RouteRegister(&R, "pprof")
 	e.Run(":8888")
 }
 
