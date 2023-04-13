@@ -570,11 +570,11 @@ func (sj *SpotJob) refreshOrders() {
 	var distance = decimal.NewFromFloat(1)
 	if len(sellOrders) > 0 {
 		bottomSellOrderPrice, _ := decimal.NewFromString(sellOrders[0].Price)
-		nextSellOrderPrice := nextOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap.Mul(decimal.NewFromFloat(3))))
+		nextSellOrderPrice := nextOrderPrice.Mul(decimal.NewFromFloat(1).Add(sj.Gap.Mul(decimal.NewFromFloat(5))))
 		distance = bottomSellOrderPrice.Sub(nextSellOrderPrice)
 		log.Printf("[%s] refresh orders, bottomSellOrderPrice[%v] - nextSellOrderPrice[%v] = distance[%v]", sj.CurrencyPair.Base, bottomSellOrderPrice, nextSellOrderPrice, distance)
 	}
-	if len(buyOrders) < 5 && len(sellOrders) < 3 && distance.GreaterThan(decimal.Zero) {
+	if len(buyOrders) < 5 && distance.GreaterThan(decimal.Zero) {
 		if _, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
 			Account:      "spot",
 			Text:         fmt.Sprintf("t-%s", util.RandomID(sj.OrderNum)),
