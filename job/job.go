@@ -2,7 +2,6 @@ package job
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -17,8 +16,9 @@ import (
 	"gate.io/util"
 	"github.com/antihax/optional"
 	"github.com/gateio/gateapi-go/v6"
-	"github.com/gorilla/websocket"
 	"github.com/shopspring/decimal"
+	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
 )
 
 var globalMux sync.Mutex
@@ -110,27 +110,13 @@ func getApiClient(key, secret string) *gateapi.APIClient {
 	return gateapi.NewAPIClient(cfg)
 }
 
-func getSocket() *websocket.Conn {
+func getSocket(ctx context.Context) *websocket.Conn {
 	u := url.URL{Scheme: "wss", Host: "api.gateio.ws", Path: "/ws/v4/"}
-	websocket.DefaultDialer.TLSClientConfig = &tls.Config{RootCAs: nil, InsecureSkipVerify: true}
-	socket, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	socket, _, err := websocket.Dial(context.TODO(), u.String(), &websocket.DialOptions{})
 	if err != nil {
 		panic(err)
 	}
-	socket.SetPingHandler(func(appData string) error {
-		Pong(socket)
-		return nil
-	})
 	return socket
-}
-
-func Pong(socket *websocket.Conn) {
-	t := time.Now().Unix()
-	pongMsg := channel.NewMsg(channel.SpotChannelPong, "", t, []string{})
-	if err := pongMsg.Pong(socket); err != nil {
-		log.Printf("job ping err %v\n", err)
-		return
-	}
 }
 
 func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret string) *SpotJob {
@@ -155,7 +141,7 @@ func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret st
 
 func (sj *SpotJob) init() {
 	sj.client = getApiClient(sj.Key, sj.Secret)
-	sj.socket = getSocket()
+	sj.socket = getSocket(sj.ctx)
 	currencyPair, _, err := sj.client.SpotApi.GetCurrencyPair(sj.ctx, sj.CurrencyPair.Id)
 	if err != nil {
 		panic(err)
@@ -363,18 +349,11 @@ func (sj *SpotJob) listen() {
 		if sj.Stoped {
 			return
 		}
-		_, message, err := sj.socket.ReadMessage()
-		if err != nil {
-			sj.State[1] = false
-			log.Printf("job [%s] read socket message err: %v\n", sj.CurrencyPair.Base, err)
-			sj.restart()
-			log.Printf("job [%s] restart", sj.CurrencyPair.Base)
-			continue
-		}
 		gateMessage := channel.GateMessage{}
-		if err := json.Unmarshal([]byte(message), &gateMessage); err != nil {
+		if err := wsjson.Read(sj.ctx, sj.socket, &gateMessage); err != nil {
 			sj.State[1] = false
-			log.Printf("job [%s], unmarshal gate message: %s err: %v\n", sj.CurrencyPair.Base, message, err)
+			log.Printf("job [%s], read gate message: %v err: %v\n", sj.CurrencyPair.Base, gateMessage, err)
+			sj.restart()
 			continue
 		}
 		sj.State[1] = true
@@ -388,7 +367,7 @@ func (sj *SpotJob) subscribe() {
 	t := time.Now().Unix()
 	ordersMsg := channel.NewMsg("spot.orders", "subscribe", t, []string{sj.CurrencyPair.Id})
 	ordersMsg.Sign(sj.Key, sj.Secret)
-	if err := ordersMsg.Send(sj.socket); err != nil {
+	if err := ordersMsg.Send(sj.ctx, sj.socket); err != nil {
 		panic(err)
 	}
 }
@@ -399,7 +378,7 @@ func (sj *SpotJob) unsubscribe() {
 	t := time.Now().Unix()
 	ordersMsg := channel.NewMsg("spot.orders", "unsubscribe", t, []string{sj.CurrencyPair.Id})
 	ordersMsg.Sign(sj.Key, sj.Secret)
-	if err := ordersMsg.Send(sj.socket); err != nil {
+	if err := ordersMsg.Send(sj.ctx, sj.socket); err != nil {
 		log.Printf("unsubscribe err: %v\n", err)
 	}
 }
@@ -422,7 +401,7 @@ func (sj *SpotJob) Ping() {
 	defer sj.socketMux.Unlock()
 	t := time.Now().Unix()
 	pingMsg := channel.NewMsg(channel.SpotChannelPing, "", t, []string{})
-	if err := pingMsg.Ping(sj.socket); err != nil {
+	if err := pingMsg.Send(sj.ctx, sj.socket); err != nil {
 		sj.State[0] = false
 		log.Printf("job [%s] ping err %v\n", sj.CurrencyPair.Base, err)
 		return
