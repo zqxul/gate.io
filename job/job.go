@@ -278,7 +278,7 @@ func (sj *SpotJob) refreshMarket() {
 			log.Printf("refreshMarket panic err: %v", panicErr)
 		}
 	}()
-	time.Sleep(time.Duration(60+sj.getRandomSecond(10)) * time.Second)
+	time.Sleep(time.Duration(10+sj.getRandomSecond(10)) * time.Second)
 	sj.mux.Lock()
 	defer sj.mux.Unlock()
 
@@ -574,7 +574,7 @@ func (sj *SpotJob) refreshOrders() {
 		distance = bottomSellOrderPrice.Sub(nextSellOrderPrice)
 		log.Printf("[%s] refresh orders, bottomSellOrderPrice[%v] - nextSellOrderPrice[%v] = distance[%v]", sj.CurrencyPair.Base, bottomSellOrderPrice, nextSellOrderPrice, distance)
 	}
-	if len(buyOrders) < 5 && distance.GreaterThan(decimal.Zero) {
+	if len(buyOrders) < 3 && distance.GreaterThan(decimal.Zero) {
 		if _, _, err := sj.client.SpotApi.CreateOrder(sj.ctx, gateapi.Order{
 			Account:      "spot",
 			Text:         fmt.Sprintf("t-%s", util.RandomID(sj.OrderNum)),
