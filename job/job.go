@@ -117,9 +117,9 @@ func New(currencyPairId string, fund, gap decimal.Decimal, key string, secret st
 	}
 	job = &SpotJob{
 		Gap:          gap,
-		OrderNum:     10,
+		OrderNum:     5,
 		Fund:         fund,
-		OrderAmount:  fund.Div(decimal.NewFromInt(10)).RoundFloor(0),
+		OrderAmount:  fund.Div(decimal.NewFromInt(5)).RoundFloor(0),
 		Key:          key,
 		Secret:       secret,
 		CurrencyPair: gateapi.CurrencyPair{Id: currencyPairId},
