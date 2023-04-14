@@ -603,6 +603,7 @@ func (sj *SpotJob) handleOrderFinishEvent(order *channel.Order) {
 	case channel.SpotChannelOrderSideSell:
 		sj.OnOrderSelled(order)
 	}
+	time.Sleep(10 * time.Second)
 }
 
 func (sj *SpotJob) OnOrderBuyed(order *channel.Order) {
