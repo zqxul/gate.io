@@ -538,6 +538,9 @@ func (sj *SpotJob) refreshOrders() {
 
 	// choose a better oder price
 	buyOrders, sellOrders, _ := sj.currentOrders()
+	if len(sellOrders) == 0 {
+		time.Sleep(1 * time.Minute)
+	}
 	if len(buyOrders) > 0 {
 		topPrice, _ := decimal.NewFromString(buyOrders[len(buyOrders)-1].Price)
 		bottomPrice, _ := decimal.NewFromString(buyOrders[0].Price)
