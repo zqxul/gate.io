@@ -540,7 +540,7 @@ func (sj *SpotJob) refreshOrders() {
 	buyOrders, sellOrders, _ := sj.currentOrders()
 	if len(sellOrders) == 0 {
 		available, _ := decimal.NewFromString(sj.getCurrencyAccount(sj.CurrencyPair.Base).Available)
-		if available.GreaterThan(decimal.NewFromFloat(1)) {
+		if available.Mul(bidPrice).GreaterThan(decimal.NewFromFloat(1)) {
 			time.Sleep(1 * time.Minute)
 		}
 	}
