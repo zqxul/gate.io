@@ -1,0 +1,1 @@
+sudo nohup ./main > ./gate-io.log 2>&1 &
