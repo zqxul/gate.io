@@ -148,7 +148,7 @@ func (sj *SpotJob) init() {
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("Currency:[%v-%v], Fee-[%v], AmountPrecision-[%d]\n", currencyPair.Base, currencyPair.Quote, currencyPair.Fee, currencyPair.AmountPrecision)
+	log.Printf("Currency:[%v-%v], Fee-[%v], AmountPrecision-[%d], MinBaseAmount-[%s]\n", currencyPair.Base, currencyPair.Quote, currencyPair.Fee, currencyPair.AmountPrecision, currencyPair.MinBaseAmount)
 	sj.CurrencyPair = currencyPair
 	sj.State = [3]bool{}
 	sj.Stoped = false
@@ -539,7 +539,10 @@ func (sj *SpotJob) refreshOrders() {
 	// choose a better oder price
 	buyOrders, sellOrders, _ := sj.currentOrders()
 	if len(sellOrders) == 0 {
-		time.Sleep(1 * time.Minute)
+		available, _ := decimal.NewFromString(sj.getCurrencyAccount(sj.CurrencyPair.Base).Available)
+		if available.GreaterThan(decimal.NewFromFloat(1)) {
+			time.Sleep(1 * time.Minute)
+		}
 	}
 	if len(buyOrders) > 0 {
 		topPrice, _ := decimal.NewFromString(buyOrders[len(buyOrders)-1].Price)
