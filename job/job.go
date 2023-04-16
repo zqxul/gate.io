@@ -541,7 +541,9 @@ func (sj *SpotJob) refreshOrders() {
 	if len(sellOrders) == 0 {
 		available, _ := decimal.NewFromString(sj.getCurrencyAccount(sj.CurrencyPair.Base).Available)
 		if available.Mul(bidPrice).GreaterThan(decimal.NewFromFloat(1)) {
+			log.Printf("refresh orders, currency available: [ %v ]", available)
 			time.Sleep(1 * time.Minute)
+			return
 		}
 	}
 	if len(buyOrders) > 0 {
