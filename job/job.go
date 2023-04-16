@@ -556,7 +556,7 @@ func (sj *SpotJob) refreshOrders() {
 			nextOrderPrice = nextBottomPrice
 		}
 		if (trend.Up() && nextOrderPrice.LessThanOrEqual(topPrice)) || (trend.Down() && nextOrderPrice.GreaterThanOrEqual(bottomPrice)) {
-			log.Printf("refreshOrders trend - [%v], next order price - [%v], top order price - [%v], bottom order price - [%v]\n", nextOrderPrice, topPrice, bottomPrice, trend.Sign())
+			log.Printf("refreshOrders trend - [%v], next order price - [%v], top order price - [%v], bottom order price - [%v]\n", trend.Sign(), nextOrderPrice, topPrice, bottomPrice)
 			return
 		}
 	}
