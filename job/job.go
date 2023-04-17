@@ -157,7 +157,6 @@ func (sj *SpotJob) init() {
 
 func (sj *SpotJob) Start() {
 	sj.init()
-	sj.subscribe()
 
 	go sj.beat()
 	go sj.listen()
