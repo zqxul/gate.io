@@ -161,6 +161,7 @@ func (sj *SpotJob) Start() {
 	go sj.listen()
 
 	go sj.refresh()
+	go sj.listenOrderEvents()
 }
 
 func (sj *SpotJob) Stop() {
@@ -198,7 +199,6 @@ func (sj *SpotJob) refresh() {
 			go sj.refreshOrders()
 			go sj.refreshOrderBook()
 			go sj.refreshMarket()
-			go sj.listenOrderEvents()
 		case <-sj.ctx.Done():
 			return
 		}
@@ -206,7 +206,7 @@ func (sj *SpotJob) refresh() {
 }
 
 func (sj *SpotJob) listenOrderEvents() {
-	ticker := time.NewTicker(time.Hour)
+	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 	for {
 		select {
