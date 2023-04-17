@@ -206,7 +206,7 @@ func (sj *SpotJob) refresh() {
 }
 
 func (sj *SpotJob) listenOrderEvents() {
-	ticker := time.NewTicker(time.Second * 5)
+	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
 		select {
