@@ -649,7 +649,7 @@ func (sj *SpotJob) OnOrderBuyed(order *channel.Order) {
 }
 
 func (sj *SpotJob) OnOrderSelled(order *channel.Order) {
-	if len(order.Text) < 3 {
+	if !strings.HasPrefix(order.Text, "t-") {
 		return
 	}
 	buyOrder, _, err := sj.client.SpotApi.GetOrder(sj.ctx, order.Text[2:], sj.CurrencyPair.Id, nil)
