@@ -649,6 +649,9 @@ func (sj *SpotJob) OnOrderBuyed(order *channel.Order) {
 }
 
 func (sj *SpotJob) OnOrderSelled(order *channel.Order) {
+	if len(order.Text) < 3 {
+		return
+	}
 	buyOrder, _, err := sj.client.SpotApi.GetOrder(sj.ctx, order.Text[2:], sj.CurrencyPair.Id, nil)
 	if err != nil {
 		log.Printf("OnOrderSelled get buy order err: %v\n", err)
