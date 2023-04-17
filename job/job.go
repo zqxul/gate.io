@@ -198,6 +198,20 @@ func (sj *SpotJob) refresh() {
 			go sj.refreshOrders()
 			go sj.refreshOrderBook()
 			go sj.refreshMarket()
+			go sj.listenOrderEvents()
+		case <-sj.ctx.Done():
+			return
+		}
+	}
+}
+
+func (sj *SpotJob) listenOrderEvents() {
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			go sj.subscribe()
 		case <-sj.ctx.Done():
 			return
 		}
