@@ -33,21 +33,12 @@ const (
 )
 
 const (
-	CurrencyPairCORE_USDT  = "CORE_USDT"
-	CurrencyPairAVT_USDT   = "AVT_USDT"
-	CurrencyPairBSW_USDT   = "BSW_USDT"
-	CurrencyPairVGX_USDT   = "VGX_USDT"
-	CurrencyPairBABY_USDT  = "BABY_USDT"
-	CurrencyPairBLUR_USDT  = "BLUR_USDT"
-	CurrencyPairBIFI_USDT  = "BIFI_USDT"
-	CurrencyPairXRP_USDT   = "XRP_USDT"
-	CurrencyPairMAPE_USDT  = "MAPE_USDT"
-	CurrencyPairDOGE_USDT  = "DOGE_USDT"
-	CurrencyPairARB_USDT   = "ARB_USDT"
-	CurrencyPairTEM_USDT   = "TEM_USDT"
-	CurrencyPairEOS_USDT   = "EOS_USDT"
-	CurrencyPairMATIC_USDT = "MATIC_USDT"
-	CurrencyPairLUNA_USDT  = "LUNA_USDT"
+	CurrencyPairVGX_USDT  = "VGX_USDT"
+	CurrencyPairXRP_USDT  = "XRP_USDT"
+	CurrencyPairDOGE_USDT = "DOGE_USDT"
+	CurrencyPairEOS_USDT  = "EOS_USDT"
+	CurrencyPairLTC_USDT  = "LTC_USDT"
+	CurrencyPairETH_USDT  = "ETH_USDT"
 )
 
 const (
