@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	go job.New(channel.CurrencyPairXRP_USDT, decimal.NewFromFloat(50), decimal.NewFromFloat(0.015), channel.SecondKey, channel.SecondSecret).Start()
+	// go job.New(channel.CurrencyPairXRP_USDT, decimal.NewFromFloat(50), decimal.NewFromFloat(0.015), channel.SecondKey, channel.SecondSecret).Start()
 	go job.New(channel.CurrencyPairEOS_USDT, decimal.NewFromFloat(50), decimal.NewFromFloat(0.015), channel.SecondKey, channel.SecondSecret).Start()
 	go job.New(channel.CurrencyPairLTC_USDT, decimal.NewFromFloat(50), decimal.NewFromFloat(0.015), channel.SecondKey, channel.SecondSecret).Start()
 	go job.New(channel.CurrencyPairVGX_USDT, decimal.NewFromFloat(50), decimal.NewFromFloat(0.020), channel.SecondKey, channel.SecondSecret).Start()
