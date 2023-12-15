@@ -13,8 +13,8 @@ var client *gateapi.APIClient
 
 func init() {
 	cfg := gateapi.NewConfiguration()
-	cfg.Key = channel.SecondKey
-	cfg.Secret = channel.SecondSecret
+	cfg.Key = channel.Key
+	cfg.Secret = channel.Secret
 	client = gateapi.NewAPIClient(cfg)
 }
 

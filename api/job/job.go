@@ -66,7 +66,7 @@ func HandleNewJob(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, err)
 		return
 	}
-	result := job.New(jobInfo.CurrencyPair.Id, jobInfo.Fund, jobInfo.Gap, channel.SecondKey, channel.SecondSecret)
+	result := job.New(jobInfo.CurrencyPair.Id, jobInfo.Fund, jobInfo.Gap, channel.Key, channel.Secret)
 	c.JSON(http.StatusOK, result)
 }
 

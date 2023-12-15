@@ -1,11 +1,8 @@
 package channel
 
 const (
-	Key    = "6f809534c02fc7931c14135547270d01"
-	Secret = "daa6a7f8c28fced4d46f6ac58b6d5545f10a35f863d6aeb4e1970281698b5614"
-
-	SecondKey    = "a44e87e3eb6eac14f5250262257439c5"
-	SecondSecret = "6633e8cb23bfe8fa3a4c42ee05d4355bf80d0663585fb7d2cfef1c6a845ac047"
+	Key    = "ee9d2ec0f99f839394f00b302dc31df1"
+	Secret = "7e03453df4eab061614f8cad5efd7f1a5580bf61b4b697d7a6287558f4d01d35"
 )
 
 const (
